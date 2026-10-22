@@ -1,0 +1,73 @@
+.navbar {
+  height: 80px;
+  padding: 0 48px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(252, 249, 243, 0.95);
+  border-bottom: 1px solid rgba(210, 195, 192, 0.3);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-logo {
+  font-family: "Playfair Display", serif;
+  font-size: 30px;
+  letter-spacing: 3px;
+  color: #000;
+  text-decoration: none;
+}
+
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.navbar-links a {
+  font-family: "Manrope", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #4e4542;
+  text-decoration: none;
+}
+
+.navbar-links a:hover,
+.navbar-links a.active {
+  color: #000;
+}
+
+.login-button {
+  padding: 10px 24px;
+  background: #000;
+  color: #fff;
+  text-decoration: none;
+  font: 600 12px "Manrope", sans-serif;
+  text-transform: uppercase;
+  border-radius: 4px;
+}
+
+@media (max-width: 600px) {
+  .navbar {
+    padding: 0 16px;
+  }
+
+  .navbar-logo {
+    font-size: 21px;
+  }
+
+  .navbar-links {
+    gap: 12px;
+  }
+
+  .navbar-links a {
+    font-size: 10px;
+  }
+
+  .login-button {
+    padding: 9px 12px;
+  }
+}

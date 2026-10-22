@@ -1,0 +1,493 @@
+
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap");
+
+:root {
+  font-family: "Manrope", sans-serif;
+  color: #241916;
+  background: #fcf9f3;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 85px;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.viceroy {
+  background: #fcf9f3;
+  overflow: hidden;
+}
+
+.site-header {
+  min-height: 80px;
+  padding: 20px 5%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: #fcf9f3;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid #e8dfd7;
+}
+
+.brand {
+  font-family: "Playfair Display", serif;
+  font-size: 29px;
+}
+
+.brand span {
+  color: #a47d65;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  font-size: 13px;
+}
+
+.nav-links a,
+.site-footer a {
+  transition: color 0.2s;
+}
+
+.nav-links a:hover,
+.site-footer a:hover {
+  color: #a47d65;
+}
+
+.login-button,
+.outline-button {
+  padding: 12px 22px;
+  border: 1px solid #241916;
+  font-size: 12px;
+  text-align: center;
+}
+
+.menu-toggle {
+  display: none;
+  border: 0;
+  background: transparent;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.hero {
+  min-height: 650px;
+  display: flex;
+  align-items: center;
+  padding: 100px 8%;
+  color: white;
+  background:
+    linear-gradient(90deg, rgba(36, 25, 22, 0.7), rgba(36, 25, 22, 0.08)),
+    linear-gradient(0deg, rgba(36, 25, 22, 0.4), transparent),
+    url("/images/viceroy-hero.jpg") center 50% / cover no-repeat;
+}
+
+.hero-content {
+  max-width: 720px;
+}
+
+.eyebrow {
+  color: #69717c;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  line-height: 1.8;
+}
+
+.eyebrow.light {
+  color: #f0eee8;
+}
+
+.hero h1 {
+  margin: 20px 0;
+  font: 400 clamp(64px, 8vw, 100px)/1.1 "Playfair Display", serif;
+}
+
+.hero p {
+  max-width: 560px;
+  color: #f0eee8;
+  font-size: 16px;
+  line-height: 1.9;
+}
+
+.primary-button,
+.submit-button {
+  display: inline-block;
+  margin-top: 22px;
+  padding: 16px 24px;
+  border: 1px solid #241916;
+  background: #241916;
+  color: white;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.hero .primary-button,
+.experience .primary-button {
+  background: #fcf9f3;
+  color: #241916;
+  border-color: #fcf9f3;
+}
+
+.primary-button:hover,
+.submit-button:hover {
+  background: #705548;
+}
+
+.section {
+  padding: 110px 6%;
+}
+
+.ethos {
+  text-align: center;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.section h2,
+.contact-intro h2 {
+  font: 400 clamp(32px, 4vw, 46px)/1.3 "Playfair Display", serif;
+}
+
+.ethos h2 {
+  max-width: 750px;
+  margin: 24px auto;
+}
+
+.ornament {
+  width: 64px;
+  height: 1px;
+  background: #d2c3c0;
+  margin: 25px auto;
+}
+
+.section-description,
+.secondary-description {
+  max-width: 800px;
+  margin: 0 auto 20px;
+  color: #4e4542;
+  font-size: 15px;
+  line-height: 1.9;
+}
+
+.secondary-description {
+  font-size: 14px;
+}
+
+.accommodations {
+  background: #f6f3ed;
+}
+
+.section-heading {
+  max-width: 800px;
+  margin: 0 auto 55px;
+  text-align: center;
+}
+
+.section-heading h2 {
+  margin-bottom: 0;
+}
+
+.room-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 30px;
+  max-width: 1250px;
+  margin: 0 auto;
+}
+
+.room-card {
+  position: relative;
+  min-height: 350px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: #e4ddd3;
+}
+
+.room-card-1 {
+  grid-column: 1 / -1;
+  min-height: 460px;
+}
+
+.room-card img {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  inset: 0;
+  object-fit: cover;
+  transition: transform 0.5s;
+}
+
+.room-card:hover img {
+  transform: scale(1.035);
+}
+
+.room-overlay {
+  position: absolute;
+  inset: 0;
+  padding: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+  color: white;
+  background: linear-gradient(transparent 30%, rgba(36, 25, 22, 0.8));
+}
+
+.room-overlay h3 {
+  max-width: 580px;
+  margin: 10px 0 0;
+  font: 400 clamp(22px, 3vw, 32px)/1.3 "Playfair Display", serif;
+}
+
+.room-tag {
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  padding: 9px 12px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.outline-button {
+  display: table;
+  margin: 40px auto 0;
+}
+
+.experience {
+  min-height: 500px;
+  display: flex;
+  align-items: center;
+  color: white;
+  background:
+    linear-gradient(90deg, rgba(36, 25, 22, 0.8), rgba(36, 25, 22, 0.2)),
+    url("/images/viceroy-villa.jpg") center / cover no-repeat;
+}
+
+.experience-content {
+  max-width: 650px;
+}
+
+.experience h2 {
+  font-size: clamp(36px, 5vw, 52px);
+}
+
+.experience p {
+  line-height: 1.9;
+  color: #f0eee8;
+}
+
+.contact {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 70px;
+  align-items: start;
+}
+
+.contact-intro > p {
+  color: #4e4542;
+  line-height: 1.9;
+}
+
+.contact-detail {
+  margin-top: 35px;
+}
+
+.contact-detail span {
+  font-size: 10px;
+  letter-spacing: 1.3px;
+  color: #69717c;
+}
+
+.contact-detail p {
+  font-size: 14px;
+}
+
+.contact-form {
+  padding: clamp(24px, 4vw, 48px);
+  background: white;
+  border: 1px solid #e8dfd7;
+}
+
+.contact-form h3 {
+  margin-top: 0;
+  margin-bottom: 35px;
+  font: 400 27px "Playfair Display", serif;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 25px 20px;
+}
+
+.form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 10px;
+  letter-spacing: 0.8px;
+}
+
+.form-grid .full-width {
+  grid-column: 1 / -1;
+}
+
+.form-grid input,
+.form-grid select,
+.form-grid textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #ded6cf;
+  border-radius: 0;
+  background: #fff;
+  color: #241916;
+  font-size: 13px;
+  letter-spacing: normal;
+  outline-offset: 2px;
+}
+
+.form-grid textarea {
+  resize: vertical;
+}
+
+.submit-button {
+  width: 100%;
+}
+
+.site-footer {
+  padding: 50px 6%;
+  border-top: 1px solid #e2d8cf;
+  text-align: center;
+}
+
+.site-footer p,
+.site-footer small {
+  color: #69615d;
+  font-size: 12px;
+}
+
+.site-footer div {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 28px;
+  margin: 25px 0;
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .site-header {
+    min-height: 72px;
+    gap: 12px;
+    padding: 16px 5%;
+  }
+
+  .brand {
+    font-size: 25px;
+  }
+
+  .menu-toggle {
+    display: block;
+    margin-left: auto;
+  }
+
+  .nav-links {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    padding: 24px;
+    flex-direction: column;
+    gap: 24px;
+    background: #fcf9f3;
+    border-bottom: 1px solid #e8dfd7;
+  }
+
+  .nav-links.open {
+    display: flex;
+  }
+
+  .login-button {
+    padding: 10px 13px;
+  }
+
+  .hero {
+    min-height: 580px;
+    padding: 80px 6%;
+  }
+
+  .section {
+    padding: 75px 6%;
+  }
+
+  .room-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .room-card,
+  .room-card-1 {
+    grid-column: auto;
+    min-height: 350px;
+  }
+
+  .room-overlay {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: 22px;
+  }
+
+  .contact {
+    grid-template-columns: 1fr;
+    gap: 35px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid .full-width {
+    grid-column: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
