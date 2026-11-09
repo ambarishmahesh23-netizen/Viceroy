@@ -1,0 +1,810 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap");
+
+:root {
+  --resort-green: #142217;
+  --resort-green-light: #203525;
+  --resort-gold: #c49d68;
+  --resort-gold-hover: #b08953;
+  --resort-gold-subtle: rgba(196, 157, 104, 0.12);
+  --resort-dark: #1b1c19;
+  --resort-cream: #faf7f2;
+  --resort-sand: #f0e9df;
+  --resort-border: #e4dcce;
+  --resort-muted: #6e6b66;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  background: var(--resort-cream);
+  color: var(--resort-dark);
+  font-family: "Manrope", sans-serif;
+  overflow-x: hidden;
+}
+
+/* ============================================================
+   LEFT VISUAL / BRANDING HERO PANE
+   ============================================================ */
+.login-visual {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 56px 8%;
+  color: #ffffff;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(15, 25, 18, 0.75) 0%,
+      rgba(20, 34, 23, 0.55) 45%,
+      rgba(15, 25, 18, 0.92) 100%
+    ),
+    url("/images/viceroy-hero.jpg") center / cover no-repeat;
+  box-shadow: inset -10px 0 30px rgba(0, 0, 0, 0.2);
+}
+
+.login-visual-overlay {
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(1.5px);
+  pointer-events: none;
+}
+
+.login-brand-header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.login-brand-logo {
+  text-decoration: none;
+  color: #ffffff;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.brand-text-main {
+  font-family: "Playfair Display", serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: #ffffff;
+}
+
+.brand-text-dot {
+  color: var(--resort-gold);
+  font-size: 32px;
+  font-weight: 900;
+}
+
+.brand-text-sub {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+}
+
+.visual-content {
+  position: relative;
+  z-index: 2;
+  max-width: 540px;
+  margin: 60px 0;
+}
+
+.visual-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(196, 157, 104, 0.18);
+  border: 1px solid rgba(196, 157, 104, 0.4);
+  border-radius: 30px;
+  color: #f7eedf;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+  backdrop-filter: blur(4px);
+}
+
+.visual-content h1 {
+  font-family: "Playfair Display", serif;
+  font-size: clamp(36px, 4.2vw, 54px);
+  font-weight: 400;
+  line-height: 1.2;
+  margin: 0 0 20px;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+}
+
+.visual-content h1 em {
+  font-style: italic;
+  font-family: "Playfair Display", serif;
+  color: #f3dfc4;
+}
+
+.visual-description {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 15px;
+  line-height: 1.8;
+  margin: 0 0 36px;
+  max-width: 480px;
+}
+
+.visual-features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  padding-top: 28px;
+}
+
+.visual-feature-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.visual-feature-icon {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.visual-feature-item strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.2px;
+}
+
+.visual-feature-item span {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.visual-footer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.visual-quote {
+  font-style: italic;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* ============================================================
+   RIGHT INTERACTIVE FORM PANE
+   ============================================================ */
+.login-form-pane {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 48px 8%;
+  background: var(--resort-cream);
+  position: relative;
+}
+
+.back-home-link {
+  align-self: flex-start;
+  margin-bottom: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--resort-muted);
+  text-decoration: none;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.back-home-link:hover {
+  color: var(--resort-green);
+  transform: translateX(-3px);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 440px;
+  background: #ffffff;
+  border: 1px solid var(--resort-border);
+  border-radius: 12px;
+  padding: 40px 36px;
+  box-shadow: 0 16px 40px rgba(20, 34, 23, 0.06);
+}
+
+/* Tab Switcher (Sign In vs Create Account) */
+.auth-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #f5f2eb;
+  padding: 4px;
+  border-radius: 8px;
+  margin-bottom: 28px;
+}
+
+.auth-tab-btn {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--resort-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.auth-tab-btn.active {
+  background: #ffffff;
+  color: var(--resort-green);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.form-header {
+  margin-bottom: 24px;
+}
+
+.form-header h2 {
+  font-family: "Playfair Display", serif;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--resort-green);
+  margin: 0 0 8px;
+  letter-spacing: -0.3px;
+}
+
+.form-header p {
+  color: var(--resort-muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Friendly Context Banner (e.g. from booking) */
+.booking-context-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fbf7ee;
+  border: 1px solid #eadbc8;
+  border-left: 4px solid var(--resort-gold);
+  border-radius: 6px;
+  margin-bottom: 22px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #634d30;
+}
+
+.booking-context-banner .icon {
+  font-size: 16px;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+/* Alert Notification Banner */
+.login-alert-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  line-height: 1.5;
+  animation: fadeIn 0.25s ease;
+}
+
+.login-alert-banner.error {
+  background: #fdf2f2;
+  border: 1px solid #f7c5c8;
+  color: #92272c;
+}
+
+.login-alert-banner.success {
+  background: #edf7ed;
+  border: 1px solid #c8e6c9;
+  color: #1e4620;
+}
+
+.login-alert-banner .alert-icon {
+  font-size: 16px;
+  line-height: 1;
+  margin-top: 1px;
+}
+
+.login-alert-banner .alert-text {
+  flex: 1;
+}
+
+.login-alert-banner .alert-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.login-alert-banner .alert-dismiss:hover {
+  opacity: 1;
+}
+
+/* Google Sign-in / Sign-up Container */
+.google-auth-section {
+  margin-bottom: 22px;
+}
+
+.google-btn-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+}
+
+.google-btn-wrapper > div {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+/* Divider with text */
+.login-divider-line {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 22px 0;
+}
+
+.login-divider-line span {
+  flex: 1;
+  height: 1px;
+  background: var(--resort-border);
+}
+
+.login-divider-line p {
+  margin: 0;
+  color: #9c978f;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Input Fields */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.form-field-group label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--resort-green);
+  text-transform: uppercase;
+}
+
+.forgot-password-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--resort-gold);
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: normal;
+  transition: color 0.2s ease;
+}
+
+.forgot-password-link:hover {
+  color: var(--resort-gold-hover);
+  text-decoration: underline;
+}
+
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon-prefix {
+  position: absolute;
+  left: 14px;
+  color: #9e978e;
+  font-size: 15px;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.form-field-group input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px 0 42px;
+  background: #ffffff;
+  border: 1px solid var(--resort-border);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--resort-dark);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.form-field-group input:focus {
+  outline: none;
+  border-color: var(--resort-gold);
+  box-shadow: 0 0 0 3px rgba(196, 157, 104, 0.2);
+}
+
+.form-field-group input::placeholder {
+  color: #aba49b;
+}
+
+/* Password Toggle Icon */
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  padding: 6px;
+  color: #8c8378;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: color 0.2s ease;
+}
+
+.password-toggle-btn:hover {
+  color: var(--resort-green);
+}
+
+/* Remember me & Security indicator */
+.form-options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--resort-muted);
+}
+
+.remember-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.remember-checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--resort-green);
+  cursor: pointer;
+}
+
+.security-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #7d776e;
+}
+
+/* Submit Action Button */
+.btn-auth-submit {
+  width: 100%;
+  height: 48px;
+  background: var(--resort-green);
+  color: #ffffff;
+  border: 1px solid var(--resort-green);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(20, 34, 23, 0.15);
+}
+
+.btn-auth-submit:hover:not(:disabled) {
+  background: var(--resort-green-light);
+  border-color: var(--resort-green-light);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(20, 34, 23, 0.22);
+}
+
+.btn-auth-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-auth-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Loading Spinner */
+.spinner-dot {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Bottom Prompts & Policy */
+.auth-switch-prompt {
+  text-align: center;
+  font-size: 13px;
+  color: var(--resort-muted);
+  margin: 20px 0 0;
+}
+
+.auth-switch-prompt button,
+.auth-switch-prompt a {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--resort-gold);
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: inherit;
+  font-size: 13px;
+  margin-left: 4px;
+}
+
+.auth-switch-prompt button:hover,
+.auth-switch-prompt a:hover {
+  color: var(--resort-gold-hover);
+  text-decoration: underline;
+}
+
+.legal-privacy-text {
+  text-align: center;
+  font-size: 11px;
+  color: #948d84;
+  line-height: 1.6;
+  margin: 18px 0 0;
+}
+
+.legal-privacy-text a {
+  color: #635d55;
+  text-decoration: underline;
+}
+
+/* ============================================================
+   ALREADY LOGGED-IN CARD
+   ============================================================ */
+.already-signed-card {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.user-avatar-circle {
+  width: 68px;
+  height: 68px;
+  background: linear-gradient(135deg, var(--resort-green), #2f4b36);
+  color: var(--resort-gold);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Playfair Display", serif;
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 auto 16px;
+  border: 2px solid var(--resort-gold);
+  box-shadow: 0 8px 24px rgba(20, 34, 23, 0.12);
+}
+
+.already-signed-card h3 {
+  font-family: "Playfair Display", serif;
+  font-size: 22px;
+  color: var(--resort-green);
+  margin: 0 0 6px;
+}
+
+.user-card-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--resort-dark);
+  margin: 0 0 4px;
+}
+
+.user-card-email {
+  font-size: 13px;
+  color: var(--resort-muted);
+  margin: 0 0 16px;
+}
+
+.user-role-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: #f4eee3;
+  color: #795d37;
+  border: 1px solid #e5d5be;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+
+.signed-in-actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btn-proceed-main {
+  width: 100%;
+  padding: 13px 18px;
+  background: var(--resort-green);
+  color: #ffffff;
+  border: 1px solid var(--resort-green);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(20, 34, 23, 0.12);
+}
+
+.btn-proceed-main:hover {
+  background: var(--resort-green-light);
+  transform: translateY(-1px);
+}
+
+.btn-proceed-admin {
+  width: 100%;
+  padding: 13px 18px;
+  background: #ffffff;
+  color: var(--resort-green);
+  border: 1px solid var(--resort-green);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-proceed-admin:hover {
+  background: #f7f5f0;
+}
+
+.btn-switch-user {
+  width: 100%;
+  padding: 11px 16px;
+  background: transparent;
+  color: #9e3d36;
+  border: 1px solid #e7c0bc;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-switch-user:hover {
+  background: #fdf5f4;
+  border-color: #9e3d36;
+}
+
+/* Footer in pane */
+.login-pane-footer {
+  margin-top: 32px;
+  font-size: 12px;
+  color: #9e978e;
+  text-align: center;
+}
+
+/* ============================================================
+   RESPONSIVENESS
+   ============================================================ */
+@media (max-width: 960px) {
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+
+  .login-visual {
+    display: none;
+  }
+
+  .login-form-pane {
+    padding: 36px 6%;
+    min-height: 100vh;
+  }
+
+  .login-card {
+    padding: 32px 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 26px 18px;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .login-form-pane {
+    padding: 24px 16px;
+    background: #ffffff;
+  }
+
+  .form-header h2 {
+    font-size: 24px;
+  }
+}
