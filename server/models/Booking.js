@@ -115,7 +115,15 @@ const bookingSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      default: "Credit/Debit Card",
+      default: "Razorpay",
+    },
+    refundedToWallet: {
+      type: Boolean,
+      default: false,
+    },
+    refundAmount: {
+      type: Number,
+      default: 0,
     },
     transactionId: {
       type: String,

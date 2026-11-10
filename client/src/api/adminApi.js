@@ -201,7 +201,7 @@ export const fetchAllBookings = async () => {
   return data.bookings || [];
 };
 
-// 14. Fetch Admin Profile
+// 14. Fetch Admin / User Profile
 export const fetchAdminProfile = async () => {
   const response = await fetch(`${BASE_URL}/auth/me`, {
     headers: getAuthHeaders(),
@@ -212,6 +212,19 @@ export const fetchAdminProfile = async () => {
     throw new Error(data.message || "Failed to fetch profile");
   }
   return data.user;
+};
+
+// 14b. Fetch User Wallet Details
+export const fetchWalletDetails = async () => {
+  const response = await fetch(`${BASE_URL}/auth/wallet`, {
+    headers: getAuthHeaders(),
+    credentials: "include",
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to fetch wallet");
+  }
+  return data;
 };
 
 // 15. Update Admin Profile

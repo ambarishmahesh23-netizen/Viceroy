@@ -147,9 +147,7 @@ function Booking() {
 
   // Payment Options
   const [paymentMethod, setPaymentMethod] = useState("Razorpay");
-  const [cardHolder, setCardHolder] = useState(currentUser?.fullName || "Guest Resident");
-  const [cardNumber, setCardNumber] = useState("4242 •••• •••• 4242");
-  const [upiId] = useState("viceroyresort@okhdfcbank");
+  const [walletBalance, setWalletBalance] = useState(currentUser?.walletBalance || 0);
 
   // Processing state
   const [submitting, setSubmitting] = useState(false);
@@ -198,6 +196,7 @@ function Booking() {
             if (!guestName && user.fullName) setGuestName(user.fullName);
             if (!email && user.email) setEmail(user.email);
             if (!phone && user.phone) setPhone(user.phone);
+            if (typeof user.walletBalance === "number") setWalletBalance(user.walletBalance);
           }
         })
         .catch(() => {});
@@ -532,9 +531,18 @@ function Booking() {
         totalPrice,
         suites: suitesPayload,
         paymentMethod,
-        cardLast4: paymentMethod === "Credit/Debit Card" ? "4242" : "0000",
+        cardLast4: paymentMethod === "Wallet" ? "WALL" : "0000",
         notes: `${totalSelectedRooms} Room(s) across ${selectedSuitesList.length} Suite(s) · ${totalAdults} Adult(s), ${totalChildren} Child(ren) (${roomBreakdownNote})`,
       };
+
+      // 0. WALLET BALANCE VALIDATION
+      if (paymentMethod === "Wallet") {
+        if (walletBalance < totalPrice) {
+          throw new Error(
+            `Insufficient Viceroy Guest Wallet balance. Your balance is ₹${walletBalance.toLocaleString("en-IN")}, but reservation total is ₹${totalPrice.toLocaleString("en-IN")}. Please select Razorpay or Pay Upon Arrival.`
+          );
+        }
+      }
 
       // 1. RAZORPAY GATEWAY CHECKOUT FLOW
       if (paymentMethod === "Razorpay") {
@@ -623,8 +631,18 @@ function Booking() {
         return;
       }
 
-      // 2. DIRECT OR ALTERNATIVE PAYMENT (Pay at Resort / Demo Card)
+      // 2. DIRECT OR ALTERNATIVE PAYMENT (Viceroy Wallet / Pay at Resort)
       const booking = await createBookingReservation(bookingData);
+
+      if (paymentMethod === "Wallet") {
+        const newBal = typeof booking?.walletBalance === "number"
+          ? booking.walletBalance
+          : Math.max(0, walletBalance - totalPrice);
+        setWalletBalance(newBal);
+        if (currentUser) {
+          localStorage.setItem("user", JSON.stringify({ ...currentUser, walletBalance: newBal }));
+        }
+      }
 
       localStorage.setItem("latest_booking", JSON.stringify(booking));
       navigate("/booking/confirmation", { state: { booking } });
@@ -1415,10 +1433,7 @@ function Booking() {
                     required
                     placeholder="e.g. Eleanor Vance"
                     value={guestName}
-                    onChange={(e) => {
-                      setGuestName(e.target.value);
-                      if (!cardHolder) setCardHolder(e.target.value);
-                    }}
+                    onChange={(e) => setGuestName(e.target.value)}
                   />
                 </label>
 
@@ -1543,7 +1558,55 @@ function Booking() {
                   </div>
                 </label>
 
-                {/* 2. PAY AT RESORT */}
+                {/* 2. VICEROY GUEST WALLET */}
+                <label
+                  className="room-option"
+                  style={{
+                    border: paymentMethod === "Wallet" ? "2px solid #142217" : "1px solid #d4c8b8",
+                    background: paymentMethod === "Wallet" ? "#fbf8f3" : "#ffffff",
+                    cursor: "pointer",
+                    padding: "16px 20px",
+                    borderRadius: "6px",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="Wallet"
+                    checked={paymentMethod === "Wallet"}
+                    onChange={() => setPaymentMethod("Wallet")}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "6px" }}>
+                      <strong style={{ fontSize: "15px", color: "#142217" }}>
+                        💳 Viceroy Guest Wallet (Credits & Refunds)
+                      </strong>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          background: walletBalance >= totalPrice ? "#142217" : "#fff0f0",
+                          color: walletBalance >= totalPrice ? "#c49d68" : "#c53030",
+                          border: walletBalance >= totalPrice ? "none" : "1px solid #feb2b2",
+                          padding: "3px 10px",
+                          borderRadius: "12px",
+                          fontWeight: "bold",
+                          letterSpacing: "0.5px",
+                        }}
+                      >
+                        {walletBalance >= totalPrice
+                          ? `✓ AVAILABLE: ₹${walletBalance.toLocaleString("en-IN")}`
+                          : `BALANCE: ₹${walletBalance.toLocaleString("en-IN")}`}
+                      </span>
+                    </div>
+                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#666" }}>
+                      {walletBalance >= totalPrice
+                        ? "Instant 1-click booking paid using your stored wallet credits from previous cancellations."
+                        : `Your wallet currently has ₹${walletBalance.toLocaleString("en-IN")}. Total due is ₹${totalPrice.toLocaleString("en-IN")}.`}
+                    </p>
+                  </div>
+                </label>
+
+                {/* 3. PAY AT RESORT */}
                 <label className="room-option">
                   <input
                     type="radio"
@@ -1555,21 +1618,6 @@ function Booking() {
                   <div>
                     <strong>Pay Upon Arrival at Resort</strong>
                     <p>Guaranteed reservation with complimentary concierge check-in valet</p>
-                  </div>
-                </label>
-
-                {/* 3. DEMO CREDIT / DEBIT CARD */}
-                <label className="room-option">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="Credit/Debit Card"
-                    checked={paymentMethod === "Credit/Debit Card"}
-                    onChange={() => setPaymentMethod("Credit/Debit Card")}
-                  />
-                  <div>
-                    <strong>Direct Demo Card (Simulated Gateway)</strong>
-                    <p>Instant simulated authorization with demo card credentials</p>
                   </div>
                 </label>
               </div>
@@ -1608,47 +1656,51 @@ function Booking() {
                 </div>
               )}
 
-              {paymentMethod === "Credit/Debit Card" && (
-                <div className="booking-fields">
-                  <label>
-                    CARDHOLDER NAME
-                    <input
-                      type="text"
-                      value={cardHolder}
-                      onChange={(e) => setCardHolder(e.target.value)}
-                      placeholder="Name as on card"
-                    />
-                  </label>
-                  <label>
-                    CARD NUMBER (DEMO GATEWAY)
-                    <input
-                      type="text"
-                      value={cardNumber}
-                      onChange={(e) => setCardNumber(e.target.value)}
-                      style={{
-                        background: "#fdfbf8",
-                        color: "#142217",
-                        fontWeight: "500",
-                      }}
-                    />
-                  </label>
-                  <label>
-                    EXPIRY
-                    <input
-                      type="text"
-                      defaultValue="12 / 28"
-                      style={{ background: "#fdfbf8", color: "#142217" }}
-                    />
-                  </label>
-                  <label>
-                    CVV / CVC
-                    <input
-                      type="password"
-                      defaultValue="888"
-                      maxLength={4}
-                      style={{ background: "#fdfbf8", color: "#142217" }}
-                    />
-                  </label>
+              {/* Viceroy Guest Wallet Information Box */}
+              {paymentMethod === "Wallet" && (
+                <div
+                  style={{
+                    background: walletBalance >= totalPrice ? "#f4f9f5" : "#fff8f8",
+                    border: `1px solid ${walletBalance >= totalPrice ? "#badcc5" : "#f8b4b4"}`,
+                    padding: "18px 20px",
+                    borderRadius: "6px",
+                    marginTop: "14px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
+                    <div>
+                      <span style={{ fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase", color: "#c49d68", fontWeight: "bold" }}>
+                        Viceroy Guest Wallet Account
+                      </span>
+                      <div style={{ fontSize: "20px", fontWeight: "bold", color: "#142217", marginTop: "2px" }}>
+                        Available Balance: ₹{walletBalance.toLocaleString("en-IN")}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <span style={{ fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase", color: "#666", display: "block" }}>
+                        Reservation Total
+                      </span>
+                      <div style={{ fontSize: "18px", fontWeight: "bold", color: "#991b1b" }}>
+                        - ₹{totalPrice.toLocaleString("en-IN")}
+                      </div>
+                    </div>
+                  </div>
+
+                  {walletBalance >= totalPrice ? (
+                    <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #dceada" }}>
+                      <p style={{ margin: "0", fontSize: "13px", color: "#1e5e31", lineHeight: "1.5" }}>
+                        ✓ You have sufficient credits. <strong>₹{totalPrice.toLocaleString("en-IN")}</strong> will be deducted from your wallet balance upon confirming this reservation.
+                        Remaining balance after booking: <strong>₹{(walletBalance - totalPrice).toLocaleString("en-IN")}</strong>.
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #fbd5d5" }}>
+                      <p style={{ margin: "0", fontSize: "13px", color: "#991b1b", lineHeight: "1.5" }}>
+                        ⚠️ Your current wallet balance of <strong>₹{walletBalance.toLocaleString("en-IN")}</strong> is insufficient for this reservation (₹{totalPrice.toLocaleString("en-IN")}).
+                        Please select <strong>Razorpay Gateway</strong> or <strong>Pay Upon Arrival at Resort</strong> to complete your reservation.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1826,17 +1878,21 @@ function Booking() {
                 <button
                   type="submit"
                   className="booking-submit"
-                  disabled={submitting}
+                  disabled={submitting || (paymentMethod === "Wallet" && walletBalance < totalPrice)}
                 >
                   {submitting
                     ? paymentMethod === "Razorpay"
                       ? "Connecting to Razorpay..."
+                      : paymentMethod === "Wallet"
+                      ? "Deducting Wallet Balance & Confirming..."
                       : "Processing Reservation & Email Voucher..."
+                    : paymentMethod === "Wallet"
+                    ? walletBalance >= totalPrice
+                      ? `Confirm & Pay with Wallet (₹${totalPrice.toLocaleString("en-IN")})`
+                      : `Insufficient Wallet Balance (₹${walletBalance.toLocaleString("en-IN")})`
                     : paymentMethod === "Razorpay"
                     ? `Proceed to Razorpay Checkout (₹${totalPrice.toLocaleString("en-IN")})`
-                    : paymentMethod === "Pay at Resort"
-                    ? `Reserve Now & Pay at Resort (₹${totalPrice.toLocaleString("en-IN")})`
-                    : `Pay & Confirm Stay (₹${totalPrice.toLocaleString("en-IN")})`}
+                    : `Reserve Now & Pay at Resort (₹${totalPrice.toLocaleString("en-IN")})`}
                 </button>
 
                 <button

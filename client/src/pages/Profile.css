@@ -34,18 +34,135 @@
   gap: 18px;
 }
 
+.profile-avatar-wrapper {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
 .profile-avatar {
-  width: 68px;
-  height: 68px;
+  width: 76px;
+  height: 76px;
   border-radius: 50%;
   background: #c49d68;
   color: #142217;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 28px;
+  font-weight: bold;
+  font-family: "Georgia", serif;
+  overflow: hidden;
+  border: 3px solid #ebd3b4;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profile-avatar-badge {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #c49d68;
+  color: #142217;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.profile-avatar-badge:hover {
+  background: #e2ba82;
+  transform: scale(1.1);
+}
+
+.btn-change-photo-mini {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-change-photo-mini:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: #ffffff;
+}
+
+/* Personal Details Tab Photo Row */
+.profile-photo-management-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 20px;
+  background: #fbf9f5;
+  border: 1px solid #ebd3b4;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.profile-photo-preview-circle {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: #142217;
+  color: #c49d68;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 26px;
   font-weight: bold;
   font-family: "Georgia", serif;
+  overflow: hidden;
+  border: 2px solid #c49d68;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.profile-photo-info h4 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: #142217;
+  font-family: "Georgia", serif;
+}
+
+.profile-photo-info p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #667268;
+}
+
+.btn-upload-guest-photo {
+  background: #142217;
+  color: #c49d68;
+  border: 1px solid #c49d68;
+  padding: 7px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-upload-guest-photo:hover:not(:disabled) {
+  background: #243a29;
+  color: #fff;
 }
 
 .profile-user-info h1 {
@@ -373,4 +490,212 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Modals in Profile */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 26, 17, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.modal-card {
+  background: #ffffff;
+  border-radius: 8px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  border: 1px solid #d9d0c1;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #f0ebe2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-family: "Georgia", serif;
+  font-size: 20px;
+  color: #142217;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  color: #888;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #f0ebe2;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background: #faf8f5;
+}
+
+/* Custom Confirmation Modal (Replaces JS alerts/confirms) */
+.custom-confirm-card {
+  max-width: 480px !important;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(196, 157, 104, 0.35);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+  animation: confirmFadeIn 0.2s ease-out;
+}
+
+.confirm-modal-header {
+  padding: 22px 24px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  border-bottom: 1px solid #f0ebe1;
+  position: relative;
+  background: #ffffff;
+}
+
+.confirm-icon-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.confirm-icon-badge.danger {
+  background: #fdf2f2;
+  border: 1px solid #f8b4b4;
+}
+
+.confirm-title-area {
+  flex: 1;
+}
+
+.confirm-tagline {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #c49d68;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.confirm-title-area h3 {
+  margin: 0;
+  font-family: "Georgia", serif;
+  font-size: 19px;
+  color: #142217;
+}
+
+.confirm-modal-header .close-btn {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  color: #888;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.confirm-modal-header .close-btn:hover {
+  background: #f3efe9;
+  color: #222;
+}
+
+.confirm-modal-body {
+  padding: 20px 24px;
+  background: #faf8f5;
+}
+
+.confirm-body-text {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333;
+}
+
+.confirm-sub-text {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #777;
+}
+
+.confirm-modal-footer {
+  padding: 16px 24px 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background: #ffffff;
+  border-top: 1px solid #f0ebe1;
+}
+
+.btn-modal-cancel {
+  padding: 10px 18px;
+  background: #ffffff;
+  border: 1px solid #d9d0c1;
+  border-radius: 6px;
+  color: #555;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-modal-cancel:hover {
+  background: #f7f4ee;
+  color: #222;
+}
+
+.btn-modal-action {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-modal-action.btn-danger {
+  background: #b91c1c;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(185, 28, 28, 0.25);
+}
+
+.btn-modal-action.btn-danger:hover {
+  background: #991b1b;
 }

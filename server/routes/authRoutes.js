@@ -10,6 +10,7 @@ import {
   sendForgotPasswordOtp,
   resetPasswordWithOtp,
   getCurrentUser,
+  getWalletDetails,
   seedAdminUser,
   updateProfile,
   updatePassword,
@@ -44,6 +45,7 @@ router.post("/forgot-password/reset", resetPasswordWithOtp);
 
 // User profile & settings (protected)
 router.get("/me", protect, getCurrentUser);
+router.get("/wallet", protect, getWalletDetails);
 router.put("/profile", protect, updateProfile);
 router.put("/update-password", protect, updatePassword);
 

@@ -70,6 +70,37 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    walletBalance: {
+      type: Number,
+      default: 0,
+      min: [0, "Wallet balance cannot be negative"],
+    },
+    walletTransactions: [
+      {
+        type: {
+          type: String,
+          enum: ["credit", "debit"],
+          required: true,
+        },
+        amount: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
+        description: {
+          type: String,
+          default: "",
+        },
+        bookingReference: {
+          type: String,
+          default: "",
+        },
+        date: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
     googleId: {
       type: String,
       unique: true,

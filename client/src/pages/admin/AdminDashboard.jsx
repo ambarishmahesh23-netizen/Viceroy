@@ -156,6 +156,40 @@ function AdminDashboard() {
     }, 4500);
   };
 
+  // Custom Confirmation Modal State (replaces native window.confirm)
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Yes, Proceed",
+    confirmType: "danger",
+    icon: "⚠️",
+    onConfirm: null,
+  });
+
+  const openConfirmModal = ({
+    title,
+    message,
+    confirmText = "Yes, Proceed",
+    confirmType = "danger",
+    icon = "⚠️",
+    onConfirm,
+  }) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      confirmText,
+      confirmType,
+      icon,
+      onConfirm,
+    });
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmModal((prev) => ({ ...prev, isOpen: false, onConfirm: null }));
+  };
+
   // 1. Fetch Stats
   const loadStats = useCallback(async () => {
     try {
@@ -363,20 +397,25 @@ function AdminDashboard() {
   };
 
   // Remove Room
-  const handleDeleteRoom = async (id, roomNumber, name) => {
-    const confirmDelete = window.confirm(
-      `Are you sure you want to remove Suite ${roomNumber} (${name})? This cannot be undone.`
-    );
-    if (!confirmDelete) return;
-
-    try {
-      await deleteRoom(id);
-      showToast(`Suite ${roomNumber} deleted successfully.`);
-      loadRooms();
-      loadStats();
-    } catch (err) {
-      showToast("Failed to delete room: " + err.message);
-    }
+  const handleDeleteRoom = (id, roomNumber, name) => {
+    openConfirmModal({
+      title: "Remove Luxury Suite",
+      message: `Are you sure you want to permanently remove Suite ${roomNumber} (${name})? This suite will be deleted from public listings and cannot be recovered.`,
+      confirmText: "Delete Suite",
+      confirmType: "danger",
+      icon: "🗑️",
+      onConfirm: async () => {
+        closeConfirmModal();
+        try {
+          await deleteRoom(id);
+          showToast(`Suite ${roomNumber} deleted successfully.`);
+          loadRooms();
+          loadStats();
+        } catch (err) {
+          showToast("Failed to delete room: " + err.message);
+        }
+      },
+    });
   };
 
   // Check-In Guest Action (Module 11)
@@ -406,21 +445,26 @@ function AdminDashboard() {
   };
 
   // Cancel Booking Action (Module 10)
-  const handleAdminCancelBooking = async (bookingId, ref) => {
-    const confirmCancel = window.confirm(
-      `Cancel reservation #${ref} and initiate refund?`
-    );
-    if (!confirmCancel) return;
-
-    try {
-      await cancelBooking(bookingId, "Cancelled by administrator");
-      showToast(`Booking #${ref} has been cancelled.`);
-      loadBookings();
-      loadRooms();
-      loadStats();
-    } catch (err) {
-      showToast("Failed to cancel: " + err.message);
-    }
+  const handleAdminCancelBooking = (bookingId, ref) => {
+    openConfirmModal({
+      title: "Cancel Guest Reservation",
+      message: `Are you sure you want to cancel reservation #${ref}? The paid amount will be refunded directly to the guest's Viceroy Wallet for their next booking.`,
+      confirmText: "Cancel Reservation",
+      confirmType: "danger",
+      icon: "🚫",
+      onConfirm: async () => {
+        closeConfirmModal();
+        try {
+          const res = await cancelBooking(bookingId, "Cancelled by administrator");
+          showToast(res.message || `Booking #${ref} has been cancelled and refunded to guest wallet.`);
+          loadBookings();
+          loadRooms();
+          loadStats();
+        } catch (err) {
+          showToast("Failed to cancel: " + err.message);
+        }
+      },
+    });
   };
 
   // Open Reply Modal
@@ -464,18 +508,25 @@ function AdminDashboard() {
   };
 
   // Delete Enquiry
-  const handleDeleteEnquiry = async (id, guestName) => {
-    const confirmDelete = window.confirm(`Delete inquiry from ${guestName}?`);
-    if (!confirmDelete) return;
-
-    try {
-      await deleteEnquiry(id);
-      showToast("Enquiry deleted.");
-      loadEnquiries();
-      loadStats();
-    } catch (err) {
-      showToast("Failed to delete enquiry: " + err.message);
-    }
+  const handleDeleteEnquiry = (id, guestName) => {
+    openConfirmModal({
+      title: "Delete Concierge Inquiry",
+      message: `Are you sure you want to remove the concierge inquiry from ${guestName}?`,
+      confirmText: "Delete Inquiry",
+      confirmType: "danger",
+      icon: "🗑️",
+      onConfirm: async () => {
+        closeConfirmModal();
+        try {
+          await deleteEnquiry(id);
+          showToast("Enquiry deleted.");
+          loadEnquiries();
+          loadStats();
+        } catch (err) {
+          showToast("Failed to delete enquiry: " + err.message);
+        }
+      },
+    });
   };
 
   // Moderate Review Status (published / hidden)
@@ -491,17 +542,24 @@ function AdminDashboard() {
   };
 
   // Delete Review
-  const handleDeleteReview = async (reviewId) => {
-    const confirmDel = window.confirm("Delete this customer review permanently?");
-    if (!confirmDel) return;
-
-    try {
-      await deleteReview(reviewId);
-      showToast("Review deleted.");
-      loadReviews();
-    } catch (err) {
-      showToast("Failed to delete review: " + err.message);
-    }
+  const handleDeleteReview = (reviewId) => {
+    openConfirmModal({
+      title: "Delete Customer Review",
+      message: "Are you sure you want to permanently remove this customer review from the resort portal?",
+      confirmText: "Delete Review",
+      confirmType: "danger",
+      icon: "🗑️",
+      onConfirm: async () => {
+        closeConfirmModal();
+        try {
+          await deleteReview(reviewId);
+          showToast("Review deleted.");
+          loadReviews();
+        } catch (err) {
+          showToast("Failed to delete review: " + err.message);
+        }
+      },
+    });
   };
 
   // Update Profile Name/Email/Photo
@@ -1545,11 +1603,11 @@ function AdminDashboard() {
                       <div className="booking-info-item">
                         <label>Payment Method & Status</label>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                          <strong style={{ color: b.paymentMethod === "Razorpay" ? "#0d6efd" : "#142217" }}>
-                            {b.paymentMethod || "Razorpay"}
+                          <strong style={{ color: b.paymentMethod === "Razorpay" ? "#0d6efd" : b.paymentMethod === "Wallet" ? "#15803d" : "#142217" }}>
+                            {b.paymentMethod === "Wallet" ? "💳 Viceroy Wallet" : b.paymentMethod || "Razorpay"}
                           </strong>
-                          <span style={{ fontSize: "11px", padding: "1px 6px", borderRadius: "3px", fontWeight: "bold", background: b.paymentStatus === "Paid" ? "#d1fae5" : "#fef3c7", color: b.paymentStatus === "Paid" ? "#065f46" : "#92400e" }}>
-                            {b.paymentStatus || "Paid"}
+                          <span style={{ fontSize: "11px", padding: "1px 6px", borderRadius: "3px", fontWeight: "bold", background: b.paymentStatus === "refunded" ? "#dcfce7" : b.paymentStatus?.toLowerCase() === "paid" ? "#d1fae5" : "#fef3c7", color: b.paymentStatus === "refunded" ? "#166534" : b.paymentStatus?.toLowerCase() === "paid" ? "#065f46" : "#92400e" }}>
+                            {b.paymentStatus === "refunded" ? "Refunded to Wallet" : b.paymentStatus || "Paid"}
                           </span>
                         </span>
                         {(b.razorpayPaymentId || b.transactionId) && (
@@ -3087,6 +3145,54 @@ function AdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Confirmation Modal (No JS alert/confirm) */}
+      {confirmModal.isOpen && (
+        <div className="modal-overlay" onClick={closeConfirmModal}>
+          <div
+            className="modal-card custom-confirm-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="confirm-modal-header">
+              <div className={`confirm-icon-badge ${confirmModal.confirmType}`}>
+                {confirmModal.icon}
+              </div>
+              <div className="confirm-title-area">
+                <span className="confirm-tagline">Administrative Action</span>
+                <h3>{confirmModal.title}</h3>
+              </div>
+              <button
+                type="button"
+                className="close-btn"
+                onClick={closeConfirmModal}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="confirm-modal-body">
+              <p className="confirm-body-text">{confirmModal.message}</p>
+            </div>
+
+            <div className="confirm-modal-footer">
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                onClick={closeConfirmModal}
+              >
+                Never Mind
+              </button>
+              <button
+                type="button"
+                className={`btn-modal-action ${confirmModal.confirmType === "danger" ? "btn-danger" : "btn-gold"}`}
+                onClick={confirmModal.onConfirm}
+              >
+                {confirmModal.confirmText}
+              </button>
+            </div>
           </div>
         </div>
       )}

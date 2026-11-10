@@ -31,7 +31,7 @@ const paymentSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["Razorpay", "Credit/Debit Card", "UPI", "Net Banking", "Pay at Resort"],
+      enum: ["Razorpay", "Wallet", "Credit/Debit Card", "UPI", "Net Banking", "Pay at Resort"],
       default: "Razorpay",
     },
     razorpayOrderId: {

@@ -111,6 +111,29 @@ function Navbar() {
             </Link>
           )}
 
+          {currentUser.role !== "admin" && (
+            <Link
+              to="/profile"
+              style={{
+                textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 14px",
+                background: "#fbf6ec",
+                border: "1px solid #dfd3bd",
+                borderRadius: "20px",
+                fontSize: "12.5px",
+                color: "#142217",
+                fontWeight: "600",
+              }}
+              title="Viceroy Guest Wallet Balance"
+            >
+              <span>💳</span>
+              <span>₹{(currentUser.walletBalance || 0).toLocaleString("en-IN")}</span>
+            </Link>
+          )}
+
           <Link
             to={currentUser.role === "admin" ? "/admin" : "/profile"}
             style={{
@@ -128,7 +151,22 @@ function Navbar() {
               letterSpacing: "0.4px",
             }}
           >
-            <span>👤</span>
+            {currentUser.profilePhoto ? (
+              <img
+                src={currentUser.profilePhoto}
+                alt={currentUser.fullName || "User"}
+                style={{
+                  width: "22px",
+                  height: "22px",
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                  display: "inline-block",
+                  border: "1.5px solid #c49d68",
+                }}
+              />
+            ) : (
+              <span>👤</span>
+            )}
             <span>{currentUser.fullName || currentUser.email}</span>
             {currentUser.role === "admin" && (
               <span

@@ -210,23 +210,52 @@ export const resetPasswordWithOtp = async (req, res) => {
 
 export const getCurrentUser = async (req, res) => {
   try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
     return res.status(200).json({
       success: true,
       user: {
-        _id: req.user._id,
-        fullName: req.user.fullName,
-        email: req.user.email,
-        phone: req.user.phone || "",
-        address: req.user.address || "",
-        role: req.user.role,
-        profilePhoto: req.user.profilePhoto || "",
-        createdAt: req.user.createdAt,
+        _id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone || "",
+        address: user.address || "",
+        role: user.role,
+        profilePhoto: user.profilePhoto || "",
+        walletBalance: user.walletBalance || 0,
+        walletTransactions: (user.walletTransactions || []).sort(
+          (a, b) => new Date(b.date) - new Date(a.date)
+        ),
+        createdAt: user.createdAt,
       },
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
       message: "Failed to retrieve user profile",
+    });
+  }
+};
+
+export const getWalletDetails = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    return res.status(200).json({
+      success: true,
+      walletBalance: user.walletBalance || 0,
+      walletTransactions: (user.walletTransactions || []).sort(
+        (a, b) => new Date(b.date) - new Date(a.date)
+      ),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to retrieve wallet details",
     });
   }
 };
@@ -280,6 +309,10 @@ export const updateProfile = async (req, res) => {
         address: user.address || "",
         role: user.role,
         profilePhoto: user.profilePhoto || "",
+        walletBalance: user.walletBalance || 0,
+        walletTransactions: (user.walletTransactions || []).sort(
+          (a, b) => new Date(b.date) - new Date(a.date)
+        ),
         createdAt: user.createdAt,
       },
     });

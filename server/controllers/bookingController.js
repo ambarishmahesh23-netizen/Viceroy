@@ -1,6 +1,7 @@
 import Booking from "../models/Booking.js";
 import Room, { getSuiteRoomNumbers } from "../models/Room.js";
 import Payment from "../models/Payment.js";
+import User from "../models/User.js";
 import sendEmail from "../utils/sendEmail.js";
 
 // @desc    Create new resort booking / reservation with overlap prevention & payment record
@@ -205,10 +206,55 @@ export const createBooking = async (req, res) => {
     const computedTotalPrice = processedSuites.reduce((sum, s) => sum + s.totalPrice, 0);
     const finalTotalPrice = Number(totalPrice) || computedTotalPrice;
 
+    // Handle Wallet Payment Verification & Debit
+    let payingUser = null;
+    if (paymentMethod === "Wallet") {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: "You must be logged in to pay with your Viceroy Guest Wallet.",
+        });
+      }
+      payingUser = await User.findById(req.user._id);
+      if (!payingUser) {
+        return res.status(404).json({
+          success: false,
+          message: "Guest user account not found.",
+        });
+      }
+      if ((payingUser.walletBalance || 0) < finalTotalPrice) {
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient Viceroy Guest Wallet balance. You have ₹${(payingUser.walletBalance || 0).toLocaleString("en-IN")}, but total required is ₹${finalTotalPrice.toLocaleString("en-IN")}.`,
+        });
+      }
+    }
+
     const primarySuite = processedSuites[0];
     const combinedNames = processedSuites.map((s) => s.roomName).join(" & ");
     const combinedCategories = [...new Set(processedSuites.map((s) => s.roomCategory))].join(" · ");
     const combinedNumbers = processedSuites.map((s) => s.roomNumber).join(", ");
+
+    // If paying via wallet, debit the balance and log the transaction
+    if (payingUser && paymentMethod === "Wallet") {
+      payingUser.walletBalance = (payingUser.walletBalance || 0) - finalTotalPrice;
+      if (!Array.isArray(payingUser.walletTransactions)) {
+        payingUser.walletTransactions = [];
+      }
+      payingUser.walletTransactions.push({
+        type: "debit",
+        amount: finalTotalPrice,
+        description: `Reservation payment for #${bookingReference} (${combinedNames})`,
+        bookingReference,
+        date: new Date(),
+      });
+      await payingUser.save();
+    }
+
+    const resolvedTxnId =
+      paymentMethod === "Wallet"
+        ? `WAL-${Date.now().toString().slice(-6)}${Math.floor(100 + Math.random() * 900)}`
+        : req.body.razorpayPaymentId || transactionId;
 
     const booking = await Booking.create({
       bookingReference,
@@ -230,9 +276,9 @@ export const createBooking = async (req, res) => {
       guests: Number(guests) || 2,
       pricePerNight: primarySuite.pricePerNight,
       totalPrice: finalTotalPrice,
-      paymentStatus: "paid",
+      paymentStatus: paymentMethod === "Pay at Resort" ? "unpaid" : "paid",
       paymentMethod: paymentMethod || "Razorpay",
-      transactionId: req.body.razorpayPaymentId || transactionId,
+      transactionId: resolvedTxnId,
       razorpayOrderId: req.body.razorpayOrderId || "",
       razorpayPaymentId: req.body.razorpayPaymentId || "",
       razorpaySignature: req.body.razorpaySignature || "",
@@ -252,8 +298,8 @@ export const createBooking = async (req, res) => {
       razorpaySignature: req.body.razorpaySignature || "",
       paymentMethod: booking.paymentMethod,
       amount: finalTotalPrice,
-      status: "successful",
-      cardLast4: cardLast4 ? cardLast4.slice(-4) : "4242",
+      status: paymentMethod === "Pay at Resort" ? "pending" : "successful",
+      cardLast4: paymentMethod === "Wallet" ? "WALL" : cardLast4 ? cardLast4.slice(-4) : "0000",
       paidAt: new Date(),
     });
 
@@ -310,6 +356,7 @@ export const createBooking = async (req, res) => {
       success: true,
       message: "Reservation confirmed successfully",
       booking,
+      walletBalance: payingUser ? payingUser.walletBalance : undefined,
     });
   } catch (error) {
     return res.status(500).json({
@@ -527,7 +574,6 @@ export const cancelBooking = async (req, res) => {
     booking.cancelledAt = new Date();
     booking.cancellationReason = reason || "Cancelled by guest";
     booking.paymentStatus = "refunded";
-    await booking.save();
 
     // Free up the room
     if (booking.room) {
@@ -541,6 +587,50 @@ export const cancelBooking = async (req, res) => {
       }
     }
 
+    // Refund paid amount directly to Guest Wallet
+    let walletRefunded = false;
+    let newWalletBalance = null;
+    const wasPaid =
+      booking.paymentStatus === "paid" ||
+      booking.paymentMethod === "Razorpay" ||
+      booking.paymentMethod === "Wallet" ||
+      booking.paymentMethod === "Credit/Debit Card";
+
+    if (wasPaid && Number(booking.totalPrice) > 0) {
+      let bookingUser = null;
+      if (booking.user) {
+        bookingUser = await User.findById(booking.user);
+      }
+      if (!bookingUser && booking.guestEmail) {
+        bookingUser = await User.findOne({
+          email: booking.guestEmail.trim().toLowerCase(),
+        });
+      }
+
+      if (bookingUser) {
+        const refundAmt = Number(booking.totalPrice);
+        bookingUser.walletBalance = (bookingUser.walletBalance || 0) + refundAmt;
+        if (!Array.isArray(bookingUser.walletTransactions)) {
+          bookingUser.walletTransactions = [];
+        }
+        bookingUser.walletTransactions.push({
+          type: "credit",
+          amount: refundAmt,
+          description: `Full refund for cancelled reservation #${booking.bookingReference} (${booking.roomName})`,
+          bookingReference: booking.bookingReference,
+          date: new Date(),
+        });
+        await bookingUser.save();
+        walletRefunded = true;
+        newWalletBalance = bookingUser.walletBalance;
+
+        booking.refundedToWallet = true;
+        booking.refundAmount = refundAmt;
+      }
+    }
+
+    await booking.save();
+
     // Update payment record to refunded
     await Payment.updateMany(
       { booking: booking._id },
@@ -551,10 +641,59 @@ export const cancelBooking = async (req, res) => {
       }
     );
 
+    // Send refund confirmation email
+    try {
+      await sendEmail({
+        to: booking.guestEmail,
+        subject: `Reservation #${booking.bookingReference} Cancelled & ₹${booking.totalPrice.toLocaleString("en-IN")} Credited to Wallet`,
+        text: `Dear ${booking.guestName},\n\nYour reservation #${booking.bookingReference} has been cancelled.\n\n` +
+          (walletRefunded
+            ? `A full refund of ₹${booking.totalPrice.toLocaleString("en-IN")} has been credited directly to your Viceroy Guest Wallet.\nYour current wallet balance is ₹${newWalletBalance.toLocaleString("en-IN")}. You can use this balance seamlessly for your next booking.`
+            : `Your reservation has been cancelled.`) +
+          `\n\nWarm regards,\nViceroy Concierge Team`,
+        html: `
+          <div style="font-family: 'Georgia', serif; max-width: 600px; margin: 0 auto; padding: 32px 24px; background: #faf8f5; border: 1px solid #e2dad0; color: #232d25;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h1 style="color: #142217; letter-spacing: 2px; font-size: 24px; text-transform: uppercase; margin: 0;">Viceroy Resort</h1>
+              <p style="color: #c49d68; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin: 4px 0 0;">Cancellation & Wallet Refund Notice</p>
+            </div>
+            <hr style="border: none; border-top: 1px solid #e2dad0; margin: 16px 0;" />
+            <p style="font-size: 15px;">Dear ${booking.guestName},</p>
+            <p style="line-height: 1.6; color: #3a453c;">
+              Your reservation <strong>#${booking.bookingReference}</strong> for <strong>${booking.roomName}</strong> has been cancelled.
+            </p>
+            ${
+              walletRefunded
+                ? `
+            <div style="background: #ffffff; padding: 18px; border: 1px solid #d4c8b8; border-radius: 6px; margin: 20px 0;">
+              <p style="margin: 0 0 6px; font-size: 11px; letter-spacing: 1px; color: #1f7a3f; text-transform: uppercase; font-weight: bold;">✓ Wallet Refund Completed</p>
+              <p style="margin: 4px 0; font-size: 16px; color: #142217;"><strong>Refund Credited:</strong> ₹${booking.totalPrice.toLocaleString("en-IN")}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #555;"><strong>Destination:</strong> Viceroy Guest Wallet</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #142217;"><strong>Updated Wallet Balance:</strong> ₹${newWalletBalance.toLocaleString("en-IN")}</p>
+              <p style="margin: 8px 0 0; font-size: 12px; color: #777;">You can apply your wallet balance towards your next resort booking immediately.</p>
+            </div>
+            `
+                : ""
+            }
+            <p style="margin-top: 24px; font-size: 13px; color: #666;">
+              Warm regards,<br>
+              <strong style="color: #142217;">The Viceroy Concierge Team</strong>
+            </p>
+          </div>
+        `,
+      });
+    } catch (mailErr) {
+      console.warn("Cancellation refund email skipped:", mailErr.message);
+    }
+
     return res.status(200).json({
       success: true,
-      message: `Reservation ${booking.bookingReference} has been cancelled and full refund has been initiated.`,
+      message: walletRefunded
+        ? `Reservation #${booking.bookingReference} has been cancelled. ₹${booking.totalPrice.toLocaleString("en-IN")} has been credited to your Viceroy Guest Wallet for your next booking.`
+        : `Reservation #${booking.bookingReference} has been cancelled.`,
       booking,
+      walletRefunded,
+      walletBalance: newWalletBalance,
     });
   } catch (error) {
     return res.status(500).json({

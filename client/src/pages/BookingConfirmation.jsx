@@ -210,14 +210,34 @@ function BookingConfirmation() {
                   </tr>
                   <tr>
                     <td>Payment Method</td>
-                    <td style={{ fontWeight: 600 }}>{booking.paymentMethod || "Razorpay"}</td>
+                    <td style={{ fontWeight: 600 }}>
+                      {booking.paymentMethod === "Wallet"
+                        ? "💳 Viceroy Guest Wallet"
+                        : booking.paymentMethod || "Razorpay"}
+                    </td>
                   </tr>
                   <tr>
                     <td>Payment Status</td>
-                    <td style={{ color: booking.paymentStatus === "Paid" ? "#1f7a3f" : "#b25e00", fontWeight: 600, textTransform: "uppercase" }}>
-                      {booking.paymentStatus || "Paid"}
+                    <td style={{ color: booking.paymentStatus?.toLowerCase() === "paid" ? "#1f7a3f" : booking.paymentStatus?.toLowerCase() === "refunded" ? "#047857" : "#b25e00", fontWeight: 600, textTransform: "uppercase" }}>
+                      {booking.paymentStatus === "refunded" ? "Refunded to Wallet" : booking.paymentStatus || "Paid"}
                     </td>
                   </tr>
+                  {booking.paymentMethod === "Wallet" && (
+                    <tr style={{ background: "#fbf8f3" }}>
+                      <td style={{ color: "#142217", fontWeight: 600 }}>Wallet Transaction</td>
+                      <td style={{ color: "#1e5e31", fontWeight: 600 }}>
+                        ✓ ₹{booking.totalPrice?.toLocaleString("en-IN")} debited from your Viceroy Guest Wallet balance
+                      </td>
+                    </tr>
+                  )}
+                  {booking.status === "cancelled" && (
+                    <tr style={{ background: "#ecfdf5" }}>
+                      <td style={{ color: "#065f46", fontWeight: "bold" }}>Wallet Refund Status</td>
+                      <td style={{ color: "#047857", fontWeight: "bold" }}>
+                        ✓ Full Refund of ₹{booking.totalPrice?.toLocaleString("en-IN")} credited back to your Viceroy Guest Wallet
+                      </td>
+                    </tr>
+                  )}
                   {booking.transactionId && (
                     <tr>
                       <td>Transaction ID</td>

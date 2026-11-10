@@ -78,6 +78,7 @@ if (!user.password) {
       email: user.email,
       role: user.role,
       profilePhoto: user.profilePhoto || "",
+      walletBalance: user.walletBalance || 0,
     },
   };
 };
@@ -166,6 +167,7 @@ export const registerService = async ({
       email: user.email,
       role: user.role,
       profilePhoto: user.profilePhoto || "",
+      walletBalance: user.walletBalance || 0,
     },
   };
 };
@@ -345,6 +347,7 @@ export const verifySignupOtpService = async ({ email, otp }) => {
       email: newUser.email,
       role: newUser.role,
       profilePhoto: newUser.profilePhoto || "",
+      walletBalance: newUser.walletBalance || 0,
     },
   };
 };
@@ -554,6 +557,7 @@ export const googleLoginService = async (credential) => {
       email: user.email,
       role: user.role,
       profilePhoto: user.profilePhoto || "",
+      walletBalance: user.walletBalance || 0,
     },
   };
 };
