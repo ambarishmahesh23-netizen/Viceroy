@@ -300,7 +300,7 @@ export const getRoomById = async (req, res) => {
   }
 };
 
-// @desc    Create a new room
+// @desc    Create a new room / suite
 // @route   POST /api/rooms
 // @access  Admin only
 export const createRoom = async (req, res) => {
@@ -308,32 +308,68 @@ export const createRoom = async (req, res) => {
     const {
       roomNumber,
       name,
+      title,
       location,
       totalRooms,
       category,
       pricePerNight,
+      price,
       capacity,
       status,
       image,
+      images,
+      featured,
       amenities,
       description,
     } = req.body;
 
-    if (!roomNumber || !name || pricePerNight === undefined) {
+    const resolvedName = (name || title || "").trim();
+
+    if (!resolvedName) {
       return res.status(400).json({
         success: false,
-        message: "Room number, name, and price per night are required",
+        message: "Suite name / title is required",
       });
     }
 
+    // Clean and validate price
+    let rawPrice = pricePerNight !== undefined ? pricePerNight : price;
+    if (typeof rawPrice === "string") {
+      rawPrice = rawPrice.replace(/[^0-9.]/g, "");
+    }
+    const cleanedPrice = Number(rawPrice);
+    if (isNaN(cleanedPrice) || cleanedPrice < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid positive price per night is required",
+      });
+    }
+
+    // Determine or clean roomNumber
+    let finalRoomNumber = (roomNumber || "").trim().toUpperCase();
+    if (!finalRoomNumber) {
+      // Auto-generate next available room number
+      const allExisting = await Room.find({}).select("roomNumber");
+      const numbers = allExisting
+        .map((r) => parseInt(r.roomNumber, 10))
+        .filter((n) => !isNaN(n) && n > 0);
+      const nextNum = numbers.length > 0 ? Math.max(...numbers) + 1 : 101;
+      finalRoomNumber = String(nextNum);
+    }
+
     const existingRoom = await Room.findOne({
-      roomNumber: roomNumber.trim().toUpperCase(),
+      roomNumber: finalRoomNumber,
     });
 
     if (existingRoom) {
+      const allExisting = await Room.find({}).select("roomNumber");
+      const numbers = allExisting
+        .map((r) => parseInt(r.roomNumber, 10))
+        .filter((n) => !isNaN(n) && n > 0);
+      const nextSuggested = numbers.length > 0 ? Math.max(...numbers) + 1 : 104;
       return res.status(400).json({
         success: false,
-        message: `Room with number ${roomNumber.trim().toUpperCase()} already exists`,
+        message: `Suite number ${finalRoomNumber} already exists. Please choose a different number (e.g. ${nextSuggested}).`,
       });
     }
 
@@ -346,31 +382,53 @@ export const createRoom = async (req, res) => {
         .filter(Boolean);
     }
 
+    const total = totalRooms ? Math.max(1, Number(totalRooms)) : 4;
+    const generatedSuiteNumbers = [];
+    for (let i = 1; i <= total; i++) {
+      generatedSuiteNumbers.push(`${finalRoomNumber}-${i}`);
+    }
+
+    const resolvedImages = Array.isArray(images) && images.length > 0
+      ? images
+      : [image?.trim() || "/images/viceroy-bedroom.jpg"];
+    const primaryImage = resolvedImages[0] || "/images/viceroy-bedroom.jpg";
+
     const newRoom = await Room.create({
-      roomNumber: roomNumber.trim().toUpperCase(),
-      name: name.trim(),
-      location: location?.trim() || "Coastal Sanctuary",
-      totalRooms: totalRooms ? Number(totalRooms) : 4,
-      category: category?.trim() || "Deluxe Room",
-      pricePerNight: Number(pricePerNight),
-      capacity: capacity ? Number(capacity) : 4,
-      status: status?.toLowerCase() || "available",
-      image: image?.trim() || "/images/home1.png",
+      roomNumber: finalRoomNumber,
+      name: resolvedName,
+      title: resolvedName,
+      location: location?.trim() || "Maldives Horizon Coast",
+      totalRooms: total,
+      category: category?.trim() || "Ocean View Suite",
+      pricePerNight: cleanedPrice,
+      price: cleanedPrice,
+      capacity: capacity ? Math.max(1, Number(capacity)) : 4,
+      status: (status || "available").toLowerCase(),
+      image: primaryImage,
+      images: resolvedImages,
+      featured: Boolean(featured),
       amenities: Array.isArray(parsedAmenities) && parsedAmenities.length > 0
         ? parsedAmenities
         : ["Ocean View", "King Bed", "High-speed Wi-Fi", "Air Conditioning", "Breakfast Included"],
       description: description?.trim() || "",
+      roomNumbers: generatedSuiteNumbers,
     });
 
     return res.status(201).json({
       success: true,
-      message: "Room created successfully",
+      message: `Suite ${newRoom.roomNumber} (${newRoom.name}) created successfully`,
       room: newRoom,
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "A suite with this room number already exists. Please pick a different number.",
+      });
+    }
     return res.status(500).json({
       success: false,
-      message: error.message || "Failed to create room",
+      message: error.message || "Failed to create suite",
     });
   }
 };
@@ -382,6 +440,13 @@ export const updateRoom = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = { ...req.body };
+
+    if (updateData.title && !updateData.name) {
+      updateData.name = updateData.title.trim();
+    }
+    if (updateData.name && !updateData.title) {
+      updateData.title = updateData.name.trim();
+    }
 
     if (updateData.roomNumber) {
       updateData.roomNumber = updateData.roomNumber.trim().toUpperCase();
@@ -400,8 +465,27 @@ export const updateRoom = async (req, res) => {
       }
     }
 
+    if (updateData.price !== undefined && updateData.pricePerNight === undefined) {
+      updateData.pricePerNight = updateData.price;
+    }
+
     if (updateData.pricePerNight !== undefined) {
-      updateData.pricePerNight = Number(updateData.pricePerNight);
+      let rawPrice = updateData.pricePerNight;
+      if (typeof rawPrice === "string") {
+        rawPrice = rawPrice.replace(/[^0-9.]/g, "");
+      }
+      updateData.pricePerNight = Number(rawPrice);
+      updateData.price = Number(rawPrice);
+    }
+
+    if (updateData.images && Array.isArray(updateData.images) && updateData.images.length > 0) {
+      updateData.image = updateData.images[0];
+    } else if (updateData.image) {
+      updateData.images = [updateData.image];
+    }
+
+    if (updateData.status) {
+      updateData.status = updateData.status.toLowerCase();
     }
 
     if (updateData.capacity !== undefined) {
@@ -490,14 +574,32 @@ export const deleteRoom = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const room = await Room.findByIdAndDelete(id);
-
+    const room = await Room.findById(id);
     if (!room) {
       return res.status(404).json({
         success: false,
         message: "Room not found",
       });
     }
+
+    // Check if any active booking exists for this room
+    const activeBooking = await Booking.findOne({
+      $or: [
+        { room: id },
+        { "suites.room": id },
+        { roomNumber: room.roomNumber },
+      ],
+      status: { $in: ["confirmed", "checked-in"] },
+    });
+
+    if (activeBooking) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete room ${room.roomNumber} (${room.name}) because active booking #${activeBooking.bookingReference} is in progress`,
+      });
+    }
+
+    await Room.findByIdAndDelete(id);
 
     return res.status(200).json({
       success: true,

@@ -30,7 +30,7 @@ const otpVerificationSchema = new mongoose.Schema(
     createdAt: {
       type: Date,
       default: Date.now,
-      expires: 60, // MongoDB TTL index: 5 minutes (300 seconds)
+      expires: 300, // MongoDB TTL index: 5 minutes (300 seconds)
     },
   },
   { timestamps: false }

@@ -466,3 +466,208 @@ export const verifyRazorpayPayment = async (verificationData) => {
   return data;
 };
 
+// 32. Fetch All Payments (Admin)
+export const fetchAllPayments = async () => {
+  const response = await fetch(`${BASE_URL}/payments`, {
+    headers: getAuthHeaders(),
+    credentials: "include",
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to fetch payments");
+  }
+  return data;
+};
+
+// 33. User Management APIs (Admin)
+export const fetchAllUsers = async (params = {}) => {
+  const query = new URLSearchParams(params).toString();
+  const url = `${BASE_URL}/users${query ? `?${query}` : ""}`;
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+    credentials: "include",
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to fetch users");
+  }
+  return data;
+};
+
+export const updateUserRoleApi = async (userId, role) => {
+  const response = await fetch(`${BASE_URL}/users/${userId}/role`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    credentials: "include",
+    body: JSON.stringify({ role }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to update user role");
+  }
+  return data;
+};
+
+export const updateUserStatusApi = async (userId, status) => {
+  const response = await fetch(`${BASE_URL}/users/${userId}/status`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    credentials: "include",
+    body: JSON.stringify({ status }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to update user status");
+  }
+  return data;
+};
+
+export const deleteUserApi = async (userId) => {
+  const response = await fetch(`${BASE_URL}/users/${userId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+    credentials: "include",
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to delete user");
+  }
+  return data;
+};
+
+// 34. Wallet System APIs
+export const fetchMyWalletTransactions = async () => {
+  const response = await fetch(`${BASE_URL}/wallet/transactions`, {
+    headers: getAuthHeaders(),
+    credentials: "include",
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to fetch wallet transactions");
+  }
+  return data;
+};
+
+export const createWalletTopupOrderApi = async (amount) => {
+  const response = await fetch(`${BASE_URL}/wallet/topup/order`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    credentials: "include",
+    body: JSON.stringify({ amount }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to create wallet top-up order");
+  }
+  return data;
+};
+
+export const verifyWalletTopupPaymentApi = async (verificationData) => {
+  const response = await fetch(`${BASE_URL}/wallet/topup/verify`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    credentials: "include",
+    body: JSON.stringify(verificationData),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to verify wallet top-up");
+  }
+  return data;
+};
+
+export const fetchAdminWalletTransactions = async () => {
+  const response = await fetch(`${BASE_URL}/wallet/admin/transactions`, {
+    headers: getAuthHeaders(),
+    credentials: "include",
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to fetch admin wallet transactions");
+  }
+  return data;
+};
+
+export const adminAdjustWalletBalanceApi = async (payload) => {
+  const response = await fetch(`${BASE_URL}/wallet/admin/adjust`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to adjust wallet balance");
+  }
+  return data;
+};
+
+// 35. Media Management APIs
+export const fetchAllMediaApi = async (params = {}) => {
+  const query = new URLSearchParams(params).toString();
+  const url = `${BASE_URL}/media${query ? `?${query}` : ""}`;
+  const response = await fetch(url);
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to fetch media");
+  }
+  return data;
+};
+
+export const uploadMediaApi = async (formData) => {
+  const token = localStorage.getItem("token");
+  const headers = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  const response = await fetch(`${BASE_URL}/media/upload`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+    body: formData,
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to upload media");
+  }
+  return data;
+};
+
+export const deleteMediaApi = async (id) => {
+  const response = await fetch(`${BASE_URL}/media/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+    credentials: "include",
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to delete media");
+  }
+  return data;
+};
+
+// 36. Resort Website Content CMS APIs
+export const fetchResortContentApi = async () => {
+  const response = await fetch(`${BASE_URL}/content/resort`);
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to fetch resort content");
+  }
+  return data;
+};
+
+export const updateResortContentApi = async (contentData) => {
+  const response = await fetch(`${BASE_URL}/content/resort`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    credentials: "include",
+    body: JSON.stringify(contentData),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to update resort content");
+  }
+  return data;
+};
+
+

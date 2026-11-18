@@ -5,12 +5,27 @@ const reviewSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
     },
     booking: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Booking",
       required: false,
+    },
+    bookingId: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    room: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Room",
+      required: false,
+    },
+    roomId: {
+      type: String,
+      trim: true,
+      default: "",
     },
     userName: {
       type: String,
@@ -44,17 +59,26 @@ const reviewSchema = new mongoose.Schema(
       required: [true, "Review comment is required"],
       trim: true,
     },
+    stayDate: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     isVerifiedStay: {
       type: Boolean,
       default: true,
     },
     status: {
       type: String,
-      enum: ["published", "pending", "hidden"],
-      default: "published",
+      enum: ["published", "approved", "pending", "hidden", "rejected"],
+      default: "approved",
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
 
 const Review = mongoose.model("Review", reviewSchema);

@@ -49,4 +49,13 @@ const adminOnly = (req, res, next) => {
   });
 };
 
-export { protect, adminOnly };
+const protectOrSecretKey = async (req, res, next) => {
+  const secretKey = req.body?.secretKey || req.headers?.["x-secret-key"];
+  // If an environment secret is configured, allow it for server-to-server operations
+  if (process.env.SUPER_ADMIN_SECRET && secretKey && secretKey === process.env.SUPER_ADMIN_SECRET) {
+    return next();
+  }
+  return protect(req, res, next);
+};
+
+export { protect, adminOnly, protectOrSecretKey };

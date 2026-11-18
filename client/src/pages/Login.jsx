@@ -123,69 +123,13 @@ function Login() {
 
   return (
     <main className="login-page">
-      {/* Visual Brand Pane (Left Column) */}
-      <section className="login-visual">
-        <div className="login-visual-overlay" />
-
-        <div className="login-brand-header">
-          <Link to="/" className="login-brand-logo">
-            <span className="brand-text-main">VICEROY</span>
-            <span className="brand-text-dot">.</span>
-            <span className="brand-text-sub">Resort & Retreats</span>
+      {/* Interactive Form Pane (Left Column) */}
+      <section className="login-form-pane">
+        <div className="login-mobile-brand">
+          <Link to="/" className="mobile-brand-link">
+            VICEROY <span className="mobile-brand-sub">MUNNAR RETREATS</span>
           </Link>
         </div>
-
-        <div className="visual-content">
-          <div className="visual-badge">
-            <span>✨</span> Curated Coastal Luxury
-          </div>
-
-          <h1>
-            Your private escape,
-            <br />
-            <em>reimagined.</em>
-          </h1>
-
-          <p className="visual-description">
-            Sign in to manage your luxury residence bookings, tailored concierge services,
-            and exclusive member experiences at Viceroy Resort.
-          </p>
-
-          <div className="visual-features-grid">
-            <div className="visual-feature-item">
-              <span className="visual-feature-icon">🌊</span>
-              <strong>Oceanfront Suites</strong>
-              <span>Panoramic sea vistas</span>
-            </div>
-
-            <div className="visual-feature-item">
-              <span className="visual-feature-icon">🛎️</span>
-              <strong>Butler Service</strong>
-              <span>Dedicated 24/7 care</span>
-            </div>
-
-            <div className="visual-feature-item">
-              <span className="visual-feature-icon">🍽️</span>
-              <strong>Fine Dining</strong>
-              <span>Michelin gastronomy</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="visual-footer">
-          <span className="visual-quote">“A place to pause. A place to belong.”</span>
-          <span>© {new Date().getFullYear()} Viceroy Resort</span>
-        </div>
-      </section>
-
-      {/* Interactive Form Pane (Right Column) */}
-      <section className="login-form-pane">
-        <Link
-          to={currentUser ? (currentUser.role === "admin" ? "/admin" : "/booking") : "/"}
-          className="back-home-link"
-        >
-          {currentUser ? "← Return to Bookings" : "← Return to Resort Homepage"}
-        </Link>
 
         <div className="login-card">
           {/* If already signed in, show a friendly member card */}
@@ -397,8 +341,63 @@ function Login() {
         </div>
 
         <footer className="login-pane-footer">
-          Viceroy Resort & Residences • Coastal Sanctuary
+          Viceroy Resort & Residences • Munnar Highlands, Kerala
         </footer>
+      </section>
+
+      {/* Visual Brand Pane (Right Column - Munnar Tea Hills) */}
+      <section className="login-visual">
+        <div className="login-visual-overlay" />
+
+        <div className="login-brand-header">
+          <Link to="/" className="login-brand-logo">
+            <span className="brand-text-main">VICEROY</span>
+            <span className="brand-text-dot">.</span>
+            <span className="brand-text-sub">Munnar Retreats</span>
+          </Link>
+        </div>
+
+        <div className="visual-content">
+          <div className="visual-badge">
+            <span>🌿</span> Munnar Highland Sanctuary
+          </div>
+
+          <h1>
+            Your misty retreat,
+            <br />
+            <em>reimagined.</em>
+          </h1>
+
+          <p className="visual-description">
+            Sign in to manage your luxury hill cottage reservations, bespoke tea plantation tours,
+            and exclusive member experiences at Viceroy Resort Munnar.
+          </p>
+
+          <div className="visual-features-grid">
+            <div className="visual-feature-item">
+              <span className="visual-feature-icon">⛰️</span>
+              <strong>Valley View Cottages</strong>
+              <span>Panoramic tea slope vistas</span>
+            </div>
+
+            <div className="visual-feature-item">
+              <span className="visual-feature-icon">🍃</span>
+              <strong>5,200 ft Elevation</strong>
+              <span>Crisp mountain air & estates</span>
+            </div>
+
+            <div className="visual-feature-item">
+              <span className="visual-feature-icon">🛎️</span>
+              <strong>Butler Service</strong>
+              <span>Dedicated 24/7 care</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="visual-footer">
+          <span className="visual-quote">“Above the clouds, amidst the whispers of Munnar’s emerald hills.”</span>
+          <span>© {new Date().getFullYear()} Viceroy Resort Munnar</span>
+        </div>
       </section>
     </main>
   );

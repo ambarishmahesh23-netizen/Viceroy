@@ -18,7 +18,7 @@
   font-family: "DM Sans", sans-serif;
 }
 
-/* Left image panel */
+/* Right image panel (Munnar Garden Cottages) */
 
 .signup-visual {
   position: relative;
@@ -30,7 +30,7 @@
   overflow: hidden;
   color: white;
   background:
-    url("/images/viceroy-hero.jpg")
+    url("/images/munnar-signup.jpg")
     center / cover no-repeat,
     #475344;
 }
@@ -319,7 +319,7 @@
 
 @media (max-width: 900px) {
   .signup-page {
-    grid-template-columns: 0.85fr 1.15fr;
+    grid-template-columns: 1.15fr 0.85fr;
   }
 
   .signup-visual {

@@ -179,3 +179,43 @@ export const googleLoginApi = async (credential) => {
 
   return data;
 };
+
+// 10. Upload profile photo via multipart/form-data
+export const uploadProfilePhotoApi = async (file) => {
+  const token = localStorage.getItem("token");
+  const formData = new FormData();
+  formData.append("photo", file);
+
+  const response = await fetch(`${API_URL}/profile-photo`, {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    credentials: "include",
+    body: formData,
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to upload profile photo");
+  }
+  return data;
+};
+
+// 11. Delete profile photo
+export const deleteProfilePhotoApi = async () => {
+  const token = localStorage.getItem("token");
+  const response = await fetch(`${API_URL}/profile-photo`, {
+    method: "DELETE",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    credentials: "include",
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to remove profile photo");
+  }
+  return data;
+};

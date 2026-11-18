@@ -16,7 +16,7 @@
 .login-page {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
+  grid-template-columns: 1fr 1.15fr;
   background: var(--resort-cream);
   color: var(--resort-dark);
   font-family: "Manrope", sans-serif;
@@ -24,7 +24,7 @@
 }
 
 /* ============================================================
-   LEFT VISUAL / BRANDING HERO PANE
+   RIGHT VISUAL / BRANDING HERO PANE (MUNNAR RETREATS)
    ============================================================ */
 .login-visual {
   position: relative;
@@ -37,12 +37,12 @@
   background:
     linear-gradient(
       180deg,
-      rgba(15, 25, 18, 0.75) 0%,
-      rgba(20, 34, 23, 0.55) 45%,
-      rgba(15, 25, 18, 0.92) 100%
+      rgba(15, 25, 18, 0.70) 0%,
+      rgba(20, 34, 23, 0.45) 45%,
+      rgba(15, 25, 18, 0.90) 100%
     ),
-    url("/images/viceroy-hero.jpg") center / cover no-repeat;
-  box-shadow: inset -10px 0 30px rgba(0, 0, 0, 0.2);
+    url("/images/munnar-login.jpg") center / cover no-repeat;
+  box-shadow: inset 10px 0 30px rgba(0, 0, 0, 0.2);
 }
 
 .login-visual-overlay {
@@ -188,7 +188,7 @@
 }
 
 /* ============================================================
-   RIGHT INTERACTIVE FORM PANE
+   LEFT INTERACTIVE FORM PANE
    ============================================================ */
 .login-form-pane {
   min-height: 100vh;
@@ -199,6 +199,34 @@
   padding: 48px 8%;
   background: var(--resort-cream);
   position: relative;
+}
+
+.login-mobile-brand {
+  display: none;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.mobile-brand-link {
+  text-decoration: none;
+  font-family: "Playfair Display", serif;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--resort-green);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.mobile-brand-sub {
+  font-family: "Manrope", sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--resort-gold);
+  text-transform: uppercase;
 }
 
 .back-home-link {
@@ -779,6 +807,10 @@
 
   .login-visual {
     display: none;
+  }
+
+  .login-mobile-brand {
+    display: flex;
   }
 
   .login-form-pane {

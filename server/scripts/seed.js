@@ -33,67 +33,112 @@ const seedDatabase = async () => {
       console.log(`Admin user already exists: ${adminEmail} (ensured role is 'admin')`);
     }
 
+    // 1b. Seed Demo Customer User (Alexander Vance)
+    const customerEmail = "alexander.vance@example.com";
+    let customerUser = await User.findOne({ email: customerEmail });
+    if (!customerUser) {
+      const customerPassword = await bcrypt.hash("Password@123", 10);
+      customerUser = await User.create({
+        fullName: "Alexander Vance",
+        email: customerEmail,
+        password: customerPassword,
+        role: "customer",
+        phone: "+1 415 555 0192",
+        walletBalance: 15000,
+      });
+      console.log(`Created demo customer user: ${customerEmail} (password: Password@123, wallet: 15000)`);
+    } else {
+      console.log(`Demo customer already exists: ${customerEmail}`);
+    }
+
     // 2. Seed Rooms if none exist
     const roomCount = await Room.countDocuments();
     if (roomCount === 0) {
       const initialRooms = [
         {
           roomNumber: "101",
-          name: "Travertine Ocean Horizon Pavilion",
-          location: "Maldives Horizon Coast",
+          name: "Highland Family Villa",
+          location: "Munnar Tea Slopes · 5,200 ft",
           totalRooms: 4,
-          category: "Ocean View Suite",
-          pricePerNight: 15000,
-          capacity: 4,
+          category: "Family Rooms",
+          pricePerNight: 16000,
+          capacity: 6,
           status: "available",
-          image: "/images/viceroy-bedroom.jpg",
-          amenities: ["Panoramic Oceanfront", "4 Luxury Rooms", "King Beds", "Private Terrace", "Complimentary Breakfast", "High-speed Wi-Fi"],
-          description: "Perched above the turquoise coastline in Maldives with 4 private rooms, uninterrupted panoramic ocean views and bespoke travertine bath fixtures.",
+          image: "/images/munnar-room-living.jpg",
+          images: [
+            "/images/munnar-room-living.jpg",
+            "/images/munnar-room-bedroom.jpg",
+            "/images/balcony.png",
+            "/images/dinningarea.png"
+          ],
+          amenities: [
+            "Multiple Beds & Family Living Space",
+            "Wood-Burning Stone Fireplace",
+            "Misty Mountain View Balcony",
+            "Complimentary High Tea for Family",
+            "High-speed Wi-Fi",
+            "Children's Welcome Kit"
+          ],
+          description: "Multiple beds and space for families. Features a stone fireplace, private balcony overlooking tea estates, interconnected sleeping spaces, and plenty of space to relax together above the clouds."
         },
         {
           roomNumber: "102",
-          name: "Private Garden Sanctuary",
-          location: "Bali Tropical Botanical Valley",
+          name: "Botanical Garden Villa",
+          location: "Munnar Botanical Valley · 5,200 ft",
           totalRooms: 4,
-          category: "Luxury Suite",
-          pricePerNight: 10000,
+          category: "Garden Rooms",
+          pricePerNight: 14000,
           capacity: 4,
           status: "available",
-          image: "/images/viceroy-bath.jpg",
-          amenities: ["Tropical Garden View", "4 Restorative Rooms", "Deep Soaking Tub", "Outdoor Rain Shower", "King Beds", "Espresso Bar"],
-          description: "Nestled within secluded botanical gardens in Bali, featuring 4 serene rooms, restorative wellness bath rituals and serene natural lighting.",
+          image: "/images/garden.png",
+          images: [
+            "/images/garden.png",
+            "/images/munnar-signup.jpg",
+            "/images/poolarea.png",
+            "/images/balcony.png"
+          ],
+          amenities: [
+            "Private Villa Surrounded by Greenery",
+            "Direct Garden & Pathway Access",
+            "Stone Walkway & Stream Bridge Views",
+            "Private Outdoor Deck",
+            "Organic Tea Bar",
+            "Deep Soaking Tub"
+          ],
+          description: "Private villa surrounded by greenery, misty slopes, and lush flora. Features direct garden access, stone pathways, wooden bridge views, secluded outdoor sitting deck, and peaceful nature walks."
         },
         {
           roomNumber: "103",
-          name: "Architectural Coastal Residence",
-          location: "Phuket Azure Peninsula",
+          name: "Royal Presidential Sanctuary",
+          location: "Munnar Summit Peak · 5,200 ft",
           totalRooms: 4,
-          category: "Royal Beach Villa",
+          category: "Presidential Rooms",
           pricePerNight: 25000,
           capacity: 4,
-          status: "booked",
-          image: "/images/viceroy-villa.jpg",
-          amenities: ["Private Infinity Pool", "4 Oceanfront Rooms", "Direct Beach Access", "Butler Service", "Sunset Deck"],
-          description: "Exclusive multi-level architectural sanctuary in Phuket offering 4 spacious bedroom suites, bespoke beachside living and private plunge pool.",
-        },
+          status: "available",
+          image: "/images/munnar-room-bedroom.jpg",
+          images: [
+            "/images/munnar-room-bedroom.jpg",
+            "/images/munnar-room-dining.jpg",
+            "/images/munnar-room-bath.jpg",
+            "/images/frontview.png"
+          ],
+          amenities: [
+            "Premium Accommodation with Multiple Rooms",
+            "Master Four-Poster Teak Suite",
+            "Private Arched Dining Salon",
+            "Artisan Copper & Slate Luxury Bath",
+            "24/7 Dedicated Butler Service",
+            "Panoramic 360° Cloud & Estate Views"
+          ],
+          description: "Premium accommodation with multiple rooms. Features a grand four-poster master suite, separate arched dining salon, handcrafted copper & slate bath, panoramic 360° cloud views, and dedicated 24/7 personal butler care."
+        }
       ];
 
       await Room.insertMany(initialRooms);
-      console.log(`Seeded ${initialRooms.length} luxury suites (each with 4 rooms in different locations).`);
+      console.log(`Seeded ${initialRooms.length} luxury suites for Munnar.`);
     } else {
-      console.log(`Rooms already present in database (${roomCount} rooms found). Ensuring locations and 4 rooms assigned.`);
-      await Room.updateMany(
-        { $or: [{ location: { $exists: false } }, { location: "" }, { location: null }] },
-        { $set: { location: "Maldives Horizon Coast", totalRooms: 4 } }
-      );
-      await Room.updateOne(
-        { roomNumber: "102" },
-        { $set: { location: "Bali Tropical Botanical Valley", totalRooms: 4 } }
-      );
-      await Room.updateOne(
-        { roomNumber: "103" },
-        { $set: { location: "Phuket Azure Peninsula", totalRooms: 4 } }
-      );
+      console.log(`Rooms already present in database (${roomCount} rooms found).`);
     }
 
     // 3. Seed Sample Enquiries if none exist

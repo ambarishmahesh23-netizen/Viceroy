@@ -1,12 +1,16 @@
+import mongoose from "mongoose";
 import Review from "../models/Review.js";
 import Booking from "../models/Booking.js";
+import Room from "../models/Room.js";
 
 // @desc    Get all published reviews (Public for Home and Room pages)
 // @route   GET /api/reviews
 // @access  Public
 export const getPublishedReviews = async (req, res) => {
   try {
-    const reviews = await Review.find({ status: "published" }).sort({ createdAt: -1 });
+    const reviews = await Review.find({
+      status: { $in: ["published", "approved"] },
+    }).sort({ createdAt: -1 });
 
     const totalReviews = reviews.length;
     const averageRating =
@@ -33,7 +37,16 @@ export const getPublishedReviews = async (req, res) => {
 // @access  Private (Logged-in Customer)
 export const createReview = async (req, res) => {
   try {
-    const { bookingId, suiteName, rating, title, comment } = req.body;
+    const {
+      bookingId,
+      roomId,
+      suiteName,
+      rating,
+      title,
+      comment,
+      stayDate,
+      status,
+    } = req.body;
 
     if (!rating || !title || !comment) {
       return res.status(400).json({
@@ -42,7 +55,8 @@ export const createReview = async (req, res) => {
       });
     }
 
-    if (rating < 1 || rating > 5) {
+    const numRating = Number(rating);
+    if (isNaN(numRating) || numRating < 1 || numRating > 5) {
       return res.status(400).json({
         success: false,
         message: "Rating must be between 1 and 5 stars",
@@ -51,26 +65,55 @@ export const createReview = async (req, res) => {
 
     let isVerified = false;
     let actualSuiteName = suiteName || "Resort Stay";
+    let matchedBookingObjId = null;
+    let matchedRoomObjId = null;
 
     if (bookingId) {
-      const booking = await Booking.findById(bookingId);
-      if (booking) {
+      const cleanBookingId = String(bookingId).trim();
+      let b = null;
+      if (mongoose.Types.ObjectId.isValid(cleanBookingId)) {
+        b = await Booking.findById(cleanBookingId);
+      }
+      if (!b) {
+        b = await Booking.findOne({
+          bookingReference: new RegExp(`^${cleanBookingId}$`, "i"),
+        });
+      }
+      if (b) {
         isVerified = true;
-        actualSuiteName = booking.roomName;
+        actualSuiteName = b.roomName;
+        matchedBookingObjId = b._id;
+      }
+    }
+
+    if (roomId) {
+      const cleanRoomId = String(roomId).trim();
+      if (mongoose.Types.ObjectId.isValid(cleanRoomId)) {
+        const r = await Room.findById(cleanRoomId);
+        if (r) {
+          matchedRoomObjId = r._id;
+          if (!actualSuiteName || actualSuiteName === "Resort Stay") {
+            actualSuiteName = r.name;
+          }
+        }
       }
     }
 
     const review = await Review.create({
-      user: req.user._id,
-      booking: bookingId || null,
-      userName: req.user.fullName,
-      userEmail: req.user.email,
+      user: req.user?._id || null,
+      booking: matchedBookingObjId,
+      bookingId: bookingId ? String(bookingId) : "",
+      room: matchedRoomObjId,
+      roomId: roomId ? String(roomId) : "",
+      userName: req.user?.fullName || "Alexander Vance",
+      userEmail: req.user?.email || "alexander.vance@example.com",
       suiteName: actualSuiteName,
-      rating: Number(rating),
+      rating: numRating,
       title: title.trim(),
       comment: comment.trim(),
+      stayDate: stayDate?.trim() || "",
       isVerifiedStay: isVerified,
-      status: "published",
+      status: (status || "approved").toLowerCase(),
     });
 
     return res.status(201).json({
@@ -106,7 +149,7 @@ export const getAdminReviews = async (req, res) => {
   }
 };
 
-// @desc    Moderate Review Status (published, hidden)
+// @desc    Moderate Review Status (published, approved, pending, hidden, rejected)
 // @route   PATCH /api/reviews/:id/status
 // @access  Admin only
 export const moderateReviewStatus = async (req, res) => {
@@ -121,9 +164,17 @@ export const moderateReviewStatus = async (req, res) => {
     }
 
     if (status) {
-      review.status = status;
+      const normalizedStatus = String(status).trim().toLowerCase();
+      const validStatuses = ["published", "approved", "pending", "hidden", "rejected"];
+      if (!validStatuses.includes(normalizedStatus)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid review status. Allowed: ${validStatuses.join(", ")}`,
+        });
+      }
+      review.status = normalizedStatus;
     } else {
-      review.status = review.status === "published" ? "hidden" : "published";
+      review.status = review.status === "approved" || review.status === "published" ? "hidden" : "approved";
     }
 
     await review.save();

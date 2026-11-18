@@ -8,9 +8,9 @@ const userSchema = new mongoose.Schema(
       trim: true,
       validate: {
         validator: function(v) {
-          return /^[a-zA-Z\s.'-]+$/.test(v);
+          return /^[a-zA-Z0-9\s.',\-#&]+$/.test(v);
         },
-        message: 'Full name can only contain alphabetic characters.'
+        message: 'Full name contains invalid characters.'
       }
     },
     
@@ -30,9 +30,9 @@ const userSchema = new mongoose.Schema(
       validate: {
         validator: function(v) {
           if (!v) return true;
-          return /^\d{10}$/.test(v);
+          return /^[\d\s+\-().]{7,25}$/.test(v);
         },
-        message: "Phone number must contain exactly 10 digits."
+        message: "Please enter a valid phone number."
       }
     },
 
@@ -55,9 +55,9 @@ const userSchema = new mongoose.Schema(
           if (typeof v === "string" && (v.startsWith("$2a$") || v.startsWith("$2b$") || v.startsWith("$2y$") || v.length >= 50)) {
             return true;
           }
-          return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(v);
+          return typeof v === "string" && v.length >= 8;
         },
-        message: "Password must contain uppercase, lowercase, number and special character."
+        message: "Password must be at least 8 characters long."
       }
     },
 
@@ -65,6 +65,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["customer", "admin"],
       default: "customer",
+    },
+    status: {
+      type: String,
+      enum: ["active", "suspended"],
+      default: "active",
     },
     profilePhoto: {
       type: String,

@@ -227,39 +227,6 @@ function Signup() {
 
   return (
     <main className="signup-page">
-      <section className="signup-visual">
-        <div className="signup-visual-overlay" />
-
-        <Link to="/" className="signup-brand">
-          <span className="brand-symbol">V</span>
-          <span>
-            VICEROY
-            <small>RESORT & RETREATS</small>
-          </span>
-        </Link>
-
-        <div className="signup-visual-content">
-          <span className="eyebrow">A WORLD OF SERENITY</span>
-
-          <h1>
-            Your next
-            <br />
-            escape begins
-            <br />
-            <em>here.</em>
-          </h1>
-
-          <p>
-            Discover exceptional stays, thoughtful details,
-            and unforgettable moments at Viceroy Resort.
-          </p>
-        </div>
-
-        <p className="visual-footer">
-          A place to pause. A place to belong.
-        </p>
-      </section>
-
       <section className="signup-form-section">
         <div className="signup-form-wrapper">
           <div className="signup-mobile-brand">
@@ -527,9 +494,43 @@ function Signup() {
           </div>
 
           <p className="signup-copyright">
-            © {new Date().getFullYear()} Viceroy Resort. All rights reserved.
+            © {new Date().getFullYear()} Viceroy Resort Munnar. All rights reserved.
           </p>
         </div>
+      </section>
+
+      {/* Right Visual Panel - Munnar Garden Cottages */}
+      <section className="signup-visual">
+        <div className="signup-visual-overlay" />
+
+        <Link to="/" className="signup-brand">
+          <span className="brand-symbol">V</span>
+          <span>
+            VICEROY
+            <small>RESORT & MUNNAR RETREATS</small>
+          </span>
+        </Link>
+
+        <div className="signup-visual-content">
+          <span className="eyebrow">A WORLD OF HIGHLAND SERENITY</span>
+
+          <h1>
+            Your misty
+            <br />
+            escape begins
+            <br />
+            <em>here.</em>
+          </h1>
+
+          <p>
+            Discover exceptional hill cottages, peaceful garden pathways,
+            and unforgettable moments at Viceroy Resort Munnar.
+          </p>
+        </div>
+
+        <p className="visual-footer">
+          A place to pause. A place to belong.
+        </p>
       </section>
     </main>
   );

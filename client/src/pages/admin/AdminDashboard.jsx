@@ -20,9 +20,28 @@ import {
   fetchAdminReviews,
   moderateReviewStatus,
   deleteReview,
+  fetchAllUsers,
+  updateUserRoleApi,
+  updateUserStatusApi,
+  deleteUserApi,
+  fetchAllPayments,
+  fetchAdminWalletTransactions,
+  adminAdjustWalletBalanceApi,
+  fetchAllMediaApi,
+  uploadMediaApi,
+  deleteMediaApi,
+  fetchResortContentApi,
+  updateResortContentApi,
 } from "../../api/adminApi";
-import { logoutUser } from "../../api/authApi";
+import { logoutUser, uploadProfilePhotoApi, deleteProfilePhotoApi } from "../../api/authApi";
 import "./AdminDashboard.css";
+
+const resolveImgUrl = (url) => {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("blob:") || url.startsWith("data:")) return url;
+  if (url.startsWith("/uploads/")) return `http://localhost:4000${url}`;
+  return url;
+};
 
 function AdminDashboard() {
   const navigate = useNavigate();
@@ -82,6 +101,59 @@ function AdminDashboard() {
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
 
+  // Users Management State
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState("all");
+  const [userStatusFilter, setUserStatusFilter] = useState("all");
+
+  // Payments Management State
+  const [payments, setPayments] = useState([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [paymentSearch, setPaymentSearch] = useState("");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("all");
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState("all");
+  const [paymentSummary, setPaymentSummary] = useState({ totalRevenue: 0, totalRefunded: 0, netRevenue: 0 });
+
+  // Wallet Monitoring State
+  const [walletTxns, setWalletTxns] = useState([]);
+  const [loadingWallet, setLoadingWallet] = useState(false);
+  const [walletSummary, setWalletSummary] = useState({ totalDeposited: 0, totalSpent: 0, netCirculation: 0 });
+  const [adjustWalletModal, setAdjustWalletModal] = useState({ open: false, user: null, amount: "", type: "credit", description: "" });
+  const [submittingAdjust, setSubmittingAdjust] = useState(false);
+
+  // Media Library State
+  const [mediaList, setMediaList] = useState([]);
+  const [loadingMedia, setLoadingMedia] = useState(false);
+  const [mediaCategoryFilter, setMediaCategoryFilter] = useState("all");
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [mediaFile, setMediaFile] = useState(null);
+  const [mediaTitle, setMediaTitle] = useState("");
+  const [mediaCategory, setMediaCategory] = useState("gallery");
+  const mediaFileInputRef = useRef(null);
+
+  // Resort Content CMS State
+  const [cmsContent, setCmsContent] = useState({
+    resortName: "Viceroy Resort",
+    tagline: "Where Luxury Meets the Horizon",
+    heroEyebrow: "EXCLUSIVE COASTAL SANCTUARY",
+    heroTitle: "Where Luxury Meets the Horizon",
+    heroDescription: "",
+    aboutEyebrow: "A TIMELESS REFUGE",
+    aboutTitle: "Crafted for serenity, immersed in nature.",
+    aboutDescription: "",
+    experienceEyebrow: "THE ART OF SLOW LIVING",
+    experienceTitle: "Your time, beautifully uninterrupted.",
+    experienceDescription: "",
+    contactEmail: "concierge@viceroyresort.com",
+    contactPhone: "+91 98765 43210",
+    contactAddress: "Viceroy Sanctuary, Azure Coastline, Maldives",
+    amenities: [],
+  });
+  const [loadingCms, setLoadingCms] = useState(false);
+  const [savingCms, setSavingCms] = useState(false);
+
   // Location Filter State
   const [locationFilter, setLocationFilter] = useState("all");
 
@@ -91,7 +163,7 @@ function AdminDashboard() {
   const [newRoomForm, setNewRoomForm] = useState({
     roomNumber: "",
     name: "",
-    location: "Maldives Horizon Coast",
+    location: "Munnar",
     totalRooms: 4,
     category: "Ocean View Suite",
     pricePerNight: "",
@@ -109,9 +181,9 @@ function AdminDashboard() {
   const [editRoomForm, setEditRoomForm] = useState({
     roomNumber: "",
     name: "",
-    location: "Maldives Horizon Coast",
+    location: "Munnar",
     totalRooms: 4,
-    category: "Ocean View Suite",
+    category: "",
     pricePerNight: "",
     capacity: 4,
     status: "available",
@@ -127,8 +199,10 @@ function AdminDashboard() {
   const [replyMessage, setReplyMessage] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
 
-  // Profile Photo & Edit Forms State
+  // Profile Photo & Suite Photo State
   const fileInputRef = useRef(null);
+  const suitePhotoInputRef = useRef(null);
+  const editSuitePhotoInputRef = useRef(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(adminUser?.profilePhoto || "");
 
@@ -277,6 +351,77 @@ function AdminDashboard() {
     }
   }, []);
 
+  // 7. Fetch Users
+  const loadUsers = useCallback(async () => {
+    setLoadingUsers(true);
+    try {
+      const data = await fetchAllUsers({
+        search: userSearch,
+        role: userRoleFilter,
+        status: userStatusFilter,
+      });
+      setUsers(data.users || []);
+    } catch (err) {
+      console.warn("Could not load users:", err.message);
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, [userSearch, userRoleFilter, userStatusFilter]);
+
+  // 8. Fetch Payments
+  const loadPayments = useCallback(async () => {
+    setLoadingPayments(true);
+    try {
+      const data = await fetchAllPayments();
+      setPayments(data.payments || []);
+      if (data.summary) setPaymentSummary(data.summary);
+    } catch (err) {
+      console.warn("Could not load payments:", err.message);
+    } finally {
+      setLoadingPayments(false);
+    }
+  }, []);
+
+  // 9. Fetch Wallet Transactions
+  const loadWallet = useCallback(async () => {
+    setLoadingWallet(true);
+    try {
+      const data = await fetchAdminWalletTransactions();
+      setWalletTxns(data.transactions || []);
+      if (data.summary) setWalletSummary(data.summary);
+    } catch (err) {
+      console.warn("Could not load wallet transactions:", err.message);
+    } finally {
+      setLoadingWallet(false);
+    }
+  }, []);
+
+  // 10. Fetch Media Library
+  const loadMedia = useCallback(async () => {
+    setLoadingMedia(true);
+    try {
+      const data = await fetchAllMediaApi({ category: mediaCategoryFilter });
+      setMediaList(data.media || []);
+    } catch (err) {
+      console.warn("Could not load media:", err.message);
+    } finally {
+      setLoadingMedia(false);
+    }
+  }, [mediaCategoryFilter]);
+
+  // 11. Fetch CMS Content
+  const loadCms = useCallback(async () => {
+    setLoadingCms(true);
+    try {
+      const data = await fetchResortContentApi();
+      if (data?.content) setCmsContent(data.content);
+    } catch (err) {
+      console.warn("Could not load resort content:", err.message);
+    } finally {
+      setLoadingCms(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadStats();
     loadRooms();
@@ -284,7 +429,135 @@ function AdminDashboard() {
     loadEnquiries();
     loadReviews();
     loadProfile();
-  }, [loadStats, loadRooms, loadBookings, loadEnquiries, loadReviews, loadProfile]);
+    loadUsers();
+    loadPayments();
+    loadWallet();
+    loadMedia();
+    loadCms();
+  }, [
+    loadStats,
+    loadRooms,
+    loadBookings,
+    loadEnquiries,
+    loadReviews,
+    loadProfile,
+    loadUsers,
+    loadPayments,
+    loadWallet,
+    loadMedia,
+    loadCms,
+  ]);
+
+  // User Actions
+  const handleUserRoleChange = async (userId, newRole) => {
+    try {
+      await updateUserRoleApi(userId, newRole);
+      showToast(`User role updated to ${newRole}`);
+      loadUsers();
+    } catch (err) {
+      showToast("Error updating role: " + err.message);
+    }
+  };
+
+  const handleUserStatusToggle = async (userId, currentStatus) => {
+    const nextStatus = currentStatus === "active" ? "suspended" : "active";
+    try {
+      await updateUserStatusApi(userId, nextStatus);
+      showToast(`User status set to ${nextStatus}`);
+      loadUsers();
+    } catch (err) {
+      showToast("Error updating status: " + err.message);
+    }
+  };
+
+  const handleDeleteUser = async (userId, userName) => {
+    if (!window.confirm(`Are you sure you want to permanently delete user "${userName}"?`)) return;
+    try {
+      await deleteUserApi(userId);
+      showToast("User deleted successfully");
+      loadUsers();
+    } catch (err) {
+      showToast("Error deleting user: " + err.message);
+    }
+  };
+
+  // Wallet Adjustment Action
+  const handleAdjustWalletSubmit = async (e) => {
+    e.preventDefault();
+    if (!adjustWalletModal.amount || Number(adjustWalletModal.amount) <= 0) {
+      showToast("Please enter a valid positive amount");
+      return;
+    }
+    setSubmittingAdjust(true);
+    try {
+      await adminAdjustWalletBalanceApi({
+        userId: adjustWalletModal.user._id,
+        amount: Number(adjustWalletModal.amount),
+        type: adjustWalletModal.type,
+        description: adjustWalletModal.description || `Admin manual ${adjustWalletModal.type}`,
+      });
+      showToast(`Wallet ${adjustWalletModal.type}ed successfully`);
+      setAdjustWalletModal({ open: false, user: null, amount: "", type: "credit", description: "" });
+      loadWallet();
+      loadUsers();
+    } catch (err) {
+      showToast("Failed to adjust wallet: " + err.message);
+    } finally {
+      setSubmittingAdjust(false);
+    }
+  };
+
+  // Media Actions
+  const handleUploadMediaSubmit = async (e) => {
+    e.preventDefault();
+    if (!mediaFile) {
+      showToast("Please select an image file to upload");
+      return;
+    }
+    setUploadingMedia(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", mediaFile);
+      formData.append("title", mediaTitle || mediaFile.name);
+      formData.append("category", mediaCategory);
+
+      await uploadMediaApi(formData);
+      showToast("Image uploaded to media library!");
+      setMediaFile(null);
+      setMediaTitle("");
+      if (mediaFileInputRef.current) mediaFileInputRef.current.value = "";
+      loadMedia();
+    } catch (err) {
+      showToast("Upload failed: " + err.message);
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
+
+  const handleDeleteMedia = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this image?")) return;
+    try {
+      await deleteMediaApi(id);
+      showToast("Image deleted successfully");
+      loadMedia();
+    } catch (err) {
+      showToast("Failed to delete image: " + err.message);
+    }
+  };
+
+  // CMS Content Action
+  const handleSaveCms = async (e) => {
+    e.preventDefault();
+    setSavingCms(true);
+    try {
+      await updateResortContentApi(cmsContent);
+      showToast("Resort website content updated successfully!");
+    } catch (err) {
+      showToast("Failed to save content: " + err.message);
+    } finally {
+      setSavingCms(false);
+    }
+  };
 
   // Handle Logout
   const handleLogout = async () => {
@@ -292,24 +565,95 @@ function AdminDashboard() {
     navigate("/login");
   };
 
+  // Open Add Room Modal with auto-calculated next suite number
+  const handleOpenAddRoom = () => {
+    let nextNum = 101;
+    if (Array.isArray(rooms) && rooms.length > 0) {
+      const numericNums = rooms
+        .map((r) => parseInt(r.roomNumber, 10))
+        .filter((n) => !isNaN(n) && n > 0);
+      if (numericNums.length > 0) {
+        nextNum = Math.max(...numericNums) + 1;
+      }
+    }
+
+    setNewRoomForm({
+      roomNumber: String(nextNum),
+      name: "",
+      location: "Maldives Horizon Coast",
+      totalRooms: 4,
+      category: "Ocean View Suite",
+      pricePerNight: "",
+      capacity: 4,
+      status: "available",
+      image: "/images/viceroy-bedroom.jpg",
+      amenities: "Oceanfront View, King Bed, Private Balcony, Wi-Fi, Breakfast Included",
+      description: "",
+    });
+    setIsAddRoomOpen(true);
+  };
+
+  // Suite Photo Upload Handler
+  const handleSuitePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("Please choose an image file (e.g. JPG, PNG, WEBP).");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setNewRoomForm((p) => ({ ...p, image: reader.result }));
+      showToast("Suite photo selected.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Edit Suite Photo Upload Handler
+  const handleEditSuitePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("Please choose an image file (e.g. JPG, PNG, WEBP).");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEditRoomForm((p) => ({ ...p, image: reader.result }));
+      showToast("Suite photo selected.");
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Add Room Submit
   const handleAddRoomSubmit = async (e) => {
     e.preventDefault();
-    if (!newRoomForm.roomNumber || !newRoomForm.name || !newRoomForm.pricePerNight) {
-      showToast("Please enter Room Number, Suite Name, and Price per Night.");
+    if (!newRoomForm.name?.trim()) {
+      showToast("Please enter a Suite Name.");
+      return;
+    }
+
+    const rawPrice = String(newRoomForm.pricePerNight).replace(/[^0-9.]/g, "");
+    const cleanedPrice = Number(rawPrice);
+    if (!rawPrice || isNaN(cleanedPrice) || cleanedPrice <= 0) {
+      showToast("Please enter a valid positive Price per Night.");
       return;
     }
 
     setSubmittingRoom(true);
     try {
-      await createRoom({
+      const res = await createRoom({
         ...newRoomForm,
+        roomNumber: newRoomForm.roomNumber?.trim() || undefined,
+        name: newRoomForm.name.trim(),
         location: newRoomForm.location?.trim() || "Maldives Horizon Coast",
         totalRooms: Number(newRoomForm.totalRooms) || 4,
-        pricePerNight: Number(newRoomForm.pricePerNight),
+        pricePerNight: cleanedPrice,
         capacity: Number(newRoomForm.capacity) || 4,
+        status: "available",
+        image: newRoomForm.image?.trim() || "/images/viceroy-bedroom.jpg",
       });
-      showToast(`Suite ${newRoomForm.roomNumber} (${newRoomForm.name}) added to inventory and published across all website pages!`);
+      showToast(res.message || `Suite ${newRoomForm.roomNumber || ""} added to inventory and published across all website pages!`);
       setIsAddRoomOpen(false);
       setNewRoomForm({
         roomNumber: "",
@@ -321,7 +665,7 @@ function AdminDashboard() {
         capacity: 4,
         status: "available",
         image: "/images/viceroy-bedroom.jpg",
-        amenities: "Ocean View, 4 Luxury Rooms, King Beds, Wi-Fi, Breakfast Included",
+        amenities: "Oceanfront View, King Bed, Private Balcony, Wi-Fi, Breakfast Included",
         description: "",
       });
       loadRooms();
@@ -362,13 +706,20 @@ function AdminDashboard() {
       return;
     }
 
+    const rawPrice = String(editRoomForm.pricePerNight).replace(/[^0-9.]/g, "");
+    const cleanedPrice = Number(rawPrice);
+    if (!rawPrice || isNaN(cleanedPrice) || cleanedPrice <= 0) {
+      showToast("Please enter a valid positive Price per Night.");
+      return;
+    }
+
     setSubmittingEditRoom(true);
     try {
       await updateRoom(editingRoomId, {
         ...editRoomForm,
         location: editRoomForm.location?.trim() || "Maldives Horizon Coast",
         totalRooms: Number(editRoomForm.totalRooms) || 4,
-        pricePerNight: Number(editRoomForm.pricePerNight),
+        pricePerNight: cleanedPrice,
         capacity: Number(editRoomForm.capacity) || 4,
       });
       showToast(`Suite ${editRoomForm.roomNumber} (${editRoomForm.name}) updated successfully! Changes are live across the entire website.`);
@@ -579,8 +930,8 @@ function AdminDashboard() {
     }
   };
 
-  // Profile Photo Upload Handlers
-  const handlePhotoSelect = (e) => {
+  // Profile Photo Upload Handlers via Multer Multipart API
+  const handlePhotoSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -594,33 +945,27 @@ function AdminDashboard() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64Data = reader.result;
-      setPhotoPreview(base64Data);
-      setProfileForm((prev) => ({ ...prev, profilePhoto: base64Data }));
+    const localPreview = URL.createObjectURL(file);
+    setPhotoPreview(localPreview);
 
-      // Auto-save the uploaded photo immediately
-      try {
-        setUploadingPhoto(true);
-        const res = await updateAdminProfile({
-          fullName: profileForm.fullName || adminUser?.fullName,
-          email: profileForm.email || adminUser?.email,
-          profilePhoto: base64Data,
-        });
-        setAdminUser(res.user);
-        localStorage.setItem("user", JSON.stringify(res.user));
-        showToast("Admin profile photo updated successfully!");
-      } catch (err) {
-        showToast("Failed to upload photo: " + err.message);
-      } finally {
-        setUploadingPhoto(false);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
+    try {
+      setUploadingPhoto(true);
+      const res = await uploadProfilePhotoApi(file);
+      const photoPath = res.profilePhoto ? (res.profilePhoto.startsWith("http") ? res.profilePhoto : `http://localhost:4000${res.profilePhoto}`) : localPreview;
+      setPhotoPreview(photoPath);
+      setAdminUser(res.user);
+      setProfileForm((prev) => ({ ...prev, profilePhoto: res.profilePhoto }));
+      localStorage.setItem("user", JSON.stringify(res.user));
+      window.dispatchEvent(new Event("user_updated"));
+      showToast("Admin profile photo updated successfully!");
+    } catch (err) {
+      showToast("Failed to upload photo: " + err.message);
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
       }
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   // Update Password
@@ -628,6 +973,11 @@ function AdminDashboard() {
     e.preventDefault();
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       showToast("New password and confirmation do not match.");
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 8) {
+      showToast("New password must contain at least 8 characters.");
       return;
     }
 
@@ -802,7 +1152,7 @@ function AdminDashboard() {
             <div className="admin-nav-avatar">
               {(photoPreview || adminUser?.profilePhoto) ? (
                 <img
-                  src={photoPreview || adminUser?.profilePhoto}
+                  src={resolveImgUrl(photoPreview || adminUser?.profilePhoto)}
                   alt={adminUser?.fullName || "Admin"}
                   className="admin-nav-avatar-img"
                 />
@@ -987,19 +1337,49 @@ function AdminDashboard() {
             className={`jump-link-btn ${activeSection === "rooms" ? "active" : ""}`}
             onClick={() => setActiveSection("rooms")}
           >
-            🛏️ Rooms (Add & Remove) ({stats.totalRooms})
+            🛏️ Rooms ({stats.totalRooms})
           </button>
           <button
             className={`jump-link-btn ${activeSection === "bookings" ? "active" : ""}`}
             onClick={() => setActiveSection("bookings")}
           >
-            📅 Booking History ({bookings.length})
+            📅 Bookings ({bookings.length})
+          </button>
+          <button
+            className={`jump-link-btn ${activeSection === "users" ? "active" : ""}`}
+            onClick={() => setActiveSection("users")}
+          >
+            👥 Users ({users.length})
+          </button>
+          <button
+            className={`jump-link-btn ${activeSection === "payments" ? "active" : ""}`}
+            onClick={() => setActiveSection("payments")}
+          >
+            💳 Payments ({payments.length})
+          </button>
+          <button
+            className={`jump-link-btn ${activeSection === "wallet" ? "active" : ""}`}
+            onClick={() => setActiveSection("wallet")}
+          >
+            👛 Wallet Ledger
+          </button>
+          <button
+            className={`jump-link-btn ${activeSection === "media" ? "active" : ""}`}
+            onClick={() => setActiveSection("media")}
+          >
+            🖼️ Media Gallery ({mediaList.length})
+          </button>
+          <button
+            className={`jump-link-btn ${activeSection === "cms" ? "active" : ""}`}
+            onClick={() => setActiveSection("cms")}
+          >
+            📝 Website CMS
           </button>
           <button
             className={`jump-link-btn ${activeSection === "enquiries" ? "active" : ""}`}
             onClick={() => setActiveSection("enquiries")}
           >
-            📩 Enquiry List ({stats.totalEnquiries})
+            📩 Enquiries ({stats.totalEnquiries})
           </button>
           <button
             className={`jump-link-btn ${activeSection === "reviews" ? "active" : ""}`}
@@ -1037,7 +1417,7 @@ function AdminDashboard() {
                   onChange={(e) => setRoomSearch(e.target.value)}
                 />
                 <button
-                  onClick={() => setIsAddRoomOpen(true)}
+                  onClick={handleOpenAddRoom}
                   className="btn-primary-action"
                 >
                   + Add New Suite
@@ -1100,7 +1480,7 @@ function AdminDashboard() {
                 <h3>No suites found</h3>
                 <p>No rooms match your filter. You can add a new room below.</p>
                 <button
-                  onClick={() => setIsAddRoomOpen(true)}
+                  onClick={handleOpenAddRoom}
                   className="btn-primary-action"
                   style={{ margin: "16px auto 0" }}
                 >
@@ -1335,18 +1715,6 @@ function AdminDashboard() {
                               title="Edit and update suite details across the website"
                             >
                               ✏️ Edit Suite
-                            </button>
-
-                            <button
-                              onClick={() =>
-                                handleToggleRoomStatus(room._id, room.status)
-                              }
-                              className={`btn-toggle-status ${
-                                isAvailable ? "mark-booked" : "mark-available"
-                              }`}
-                              title="Toggle room status"
-                            >
-                              {isAvailable ? "Mark as Booked" : "Mark as Available"}
                             </button>
 
                             <button
@@ -1977,7 +2345,907 @@ function AdminDashboard() {
         )}
 
         {/* ============================================================== */}
-        {/* 5. ADMIN PROFILE SECTION                                       */}
+        {/* 5. GUEST & USER ACCOUNTS MANAGEMENT SECTION                     */}
+        {/* ============================================================== */}
+        {(activeSection === "all" || activeSection === "users") && (
+          <section className="admin-section-block" id="users">
+            <div className="section-title-row">
+              <div>
+                <h2>👥 Guest & Staff Accounts Management</h2>
+                <p>
+                  Manage registered users, review wallet balances, adjust roles between guest and administrator, and maintain platform security.
+                </p>
+              </div>
+
+              <button onClick={loadUsers} className="filter-pill">
+                🔄 Refresh Users
+              </button>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="filter-toolbar" style={{ marginBottom: "18px", display: "flex", gap: "12px", flexWrap: "wrap" }}>
+              <input
+                type="text"
+                placeholder="🔍 Search by name, email, or phone..."
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                style={{
+                  flex: "1 1 250px",
+                  padding: "9px 14px",
+                  borderRadius: "6px",
+                  border: "1px solid #dcd3c5",
+                  fontSize: "13px",
+                }}
+              />
+
+              <select
+                value={userRoleFilter}
+                onChange={(e) => setUserRoleFilter(e.target.value)}
+                style={{
+                  padding: "9px 14px",
+                  borderRadius: "6px",
+                  border: "1px solid #dcd3c5",
+                  fontSize: "13px",
+                  background: "#fff",
+                }}
+              >
+                <option value="all">All Roles</option>
+                <option value="customer">Customers Only</option>
+                <option value="admin">Administrators Only</option>
+              </select>
+
+              <select
+                value={userStatusFilter}
+                onChange={(e) => setUserStatusFilter(e.target.value)}
+                style={{
+                  padding: "9px 14px",
+                  borderRadius: "6px",
+                  border: "1px solid #dcd3c5",
+                  fontSize: "13px",
+                  background: "#fff",
+                }}
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active Accounts</option>
+                <option value="suspended">Suspended Accounts</option>
+              </select>
+            </div>
+
+            {loadingUsers ? (
+              <div className="empty-state-box">
+                <p>Loading accounts...</p>
+              </div>
+            ) : users.length === 0 ? (
+              <div className="empty-state-box">
+                <h3>No Users Found</h3>
+                <p>No user accounts matched your search criteria.</p>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Email & Phone</th>
+                      <th>Role</th>
+                      <th>Account Status</th>
+                      <th>Wallet Balance</th>
+                      <th>Registered</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((u) => (
+                      <tr key={u._id}>
+                        <td>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            {u.profilePhoto ? (
+                              <img
+                                src={resolveImgUrl(u.profilePhoto)}
+                                alt={u.fullName}
+                                style={{ width: "32px", height: "32px", borderRadius: "50%", objectFit: "cover" }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: "32px",
+                                  height: "32px",
+                                  borderRadius: "50%",
+                                  background: "#142217",
+                                  color: "#c49d68",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontSize: "13px",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                {u.fullName ? u.fullName.charAt(0).toUpperCase() : "U"}
+                              </div>
+                            )}
+                            <div>
+                              <strong>{u.fullName}</strong>
+                              {u._id === adminUser?._id && (
+                                <span style={{ marginLeft: "6px", fontSize: "10px", color: "#c49d68" }}>(You)</span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div>{u.email}</div>
+                          <div style={{ fontSize: "11px", color: "#8a7c6a" }}>{u.phone || "No phone"}</div>
+                        </td>
+                        <td>
+                          <select
+                            value={u.role}
+                            disabled={u._id === adminUser?._id}
+                            onChange={(e) => handleUserRoleChange(u._id, e.target.value)}
+                            style={{
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              border: "1px solid #dcd3c5",
+                              fontSize: "12px",
+                              fontWeight: "600",
+                              color: u.role === "admin" ? "#c49d68" : "#142217",
+                            }}
+                          >
+                            <option value="customer">Customer</option>
+                            <option value="admin">Administrator</option>
+                          </select>
+                        </td>
+                        <td>
+                          <button
+                            onClick={() => handleUserStatusToggle(u._id, u.status || "active")}
+                            disabled={u._id === adminUser?._id}
+                            style={{
+                              padding: "4px 10px",
+                              borderRadius: "12px",
+                              border: "none",
+                              fontSize: "11px",
+                              fontWeight: "bold",
+                              cursor: u._id === adminUser?._id ? "not-allowed" : "pointer",
+                              background: u.status === "suspended" ? "#fdf0f0" : "#eaf7ee",
+                              color: u.status === "suspended" ? "#a82e2e" : "#1f7a3f",
+                            }}
+                          >
+                            {u.status === "suspended" ? "⛔ Suspended" : "✓ Active"}
+                          </button>
+                        </td>
+                        <td>
+                          <strong style={{ color: "#142217" }}>
+                            ₹{(u.walletBalance || 0).toLocaleString("en-IN")}
+                          </strong>
+                        </td>
+                        <td style={{ fontSize: "12px", color: "#6a7b70" }}>
+                          {new Date(u.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+                        </td>
+                        <td>
+                          <div style={{ display: "flex", gap: "6px" }}>
+                            <button
+                              onClick={() => setAdjustWalletModal({ open: true, user: u, amount: "", type: "credit", description: "" })}
+                              className="btn-sm-action"
+                              style={{ background: "#fbf6ec", color: "#826231", border: "1px solid #c49d68", fontSize: "11px", padding: "4px 8px" }}
+                            >
+                              👛 Adjust Wallet
+                            </button>
+                            {u._id !== adminUser?._id && (
+                              <button
+                                onClick={() => handleDeleteUser(u._id, u.fullName)}
+                                className="btn-sm-action btn-cancel-res"
+                                style={{ fontSize: "11px", padding: "4px 8px" }}
+                              >
+                                🗑️ Delete
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ============================================================== */}
+        {/* 6. PAYMENTS & TRANSACTIONS MANAGEMENT SECTION                   */}
+        {/* ============================================================== */}
+        {(activeSection === "all" || activeSection === "payments") && (
+          <section className="admin-section-block" id="payments">
+            <div className="section-title-row">
+              <div>
+                <h2>💳 Payments & Revenue Ledger</h2>
+                <p>
+                  Comprehensive record of all guest transactions, gateway verification tokens, and refund history.
+                </p>
+              </div>
+
+              <button onClick={loadPayments} className="filter-pill">
+                🔄 Refresh Payments
+              </button>
+            </div>
+
+            {/* Top Revenue Summary Cards */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "20px" }}>
+              <div style={{ background: "#ffffff", padding: "18px", borderRadius: "8px", border: "1px solid #e7ded2", borderLeft: "4px solid #1f7a3f" }}>
+                <span style={{ fontSize: "12px", color: "#8a7c6a", textTransform: "uppercase", letterSpacing: "0.5px" }}>Gross Revenue</span>
+                <div style={{ fontSize: "24px", fontWeight: "700", color: "#1f7a3f", marginTop: "4px" }}>
+                  ₹{paymentSummary.totalRevenue.toLocaleString("en-IN")}
+                </div>
+              </div>
+
+              <div style={{ background: "#ffffff", padding: "18px", borderRadius: "8px", border: "1px solid #e7ded2", borderLeft: "4px solid #c95d32" }}>
+                <span style={{ fontSize: "12px", color: "#8a7c6a", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Refunds</span>
+                <div style={{ fontSize: "24px", fontWeight: "700", color: "#c95d32", marginTop: "4px" }}>
+                  ₹{paymentSummary.totalRefunded.toLocaleString("en-IN")}
+                </div>
+              </div>
+
+              <div style={{ background: "#142217", padding: "18px", borderRadius: "8px", border: "1px solid #c49d68" }}>
+                <span style={{ fontSize: "12px", color: "#c49d68", textTransform: "uppercase", letterSpacing: "0.5px" }}>Net Realized Revenue</span>
+                <div style={{ fontSize: "24px", fontWeight: "700", color: "#fbf6ec", marginTop: "4px" }}>
+                  ₹{paymentSummary.netRevenue.toLocaleString("en-IN")}
+                </div>
+              </div>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="filter-toolbar" style={{ marginBottom: "18px", display: "flex", gap: "12px", flexWrap: "wrap" }}>
+              <input
+                type="text"
+                placeholder="🔍 Search transaction ID or guest email..."
+                value={paymentSearch}
+                onChange={(e) => setPaymentSearch(e.target.value)}
+                style={{
+                  flex: "1 1 250px",
+                  padding: "9px 14px",
+                  borderRadius: "6px",
+                  border: "1px solid #dcd3c5",
+                  fontSize: "13px",
+                }}
+              />
+
+              <select
+                value={paymentStatusFilter}
+                onChange={(e) => setPaymentStatusFilter(e.target.value)}
+                style={{
+                  padding: "9px 14px",
+                  borderRadius: "6px",
+                  border: "1px solid #dcd3c5",
+                  fontSize: "13px",
+                  background: "#fff",
+                }}
+              >
+                <option value="all">All Payment Statuses</option>
+                <option value="successful">Successful</option>
+                <option value="pending">Pending</option>
+                <option value="refunded">Refunded</option>
+                <option value="failed">Failed</option>
+              </select>
+
+              <select
+                value={paymentMethodFilter}
+                onChange={(e) => setPaymentMethodFilter(e.target.value)}
+                style={{
+                  padding: "9px 14px",
+                  borderRadius: "6px",
+                  border: "1px solid #dcd3c5",
+                  fontSize: "13px",
+                  background: "#fff",
+                }}
+              >
+                <option value="all">All Payment Methods</option>
+                <option value="Razorpay">Razorpay</option>
+                <option value="Wallet">Wallet</option>
+                <option value="Pay at Resort">Pay at Resort</option>
+              </select>
+            </div>
+
+            {loadingPayments ? (
+              <div className="empty-state-box">
+                <p>Loading payments ledger...</p>
+              </div>
+            ) : payments.length === 0 ? (
+              <div className="empty-state-box">
+                <h3>No Payments Recorded</h3>
+                <p>Transactions will appear here automatically when reservations are made.</p>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Transaction ID</th>
+                      <th>Booking Ref</th>
+                      <th>Guest Email</th>
+                      <th>Method</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payments
+                      .filter((p) => {
+                        if (paymentStatusFilter !== "all" && p.status !== paymentStatusFilter) return false;
+                        if (paymentMethodFilter !== "all" && p.paymentMethod !== paymentMethodFilter) return false;
+                        if (paymentSearch) {
+                          const term = paymentSearch.toLowerCase();
+                          return (
+                            p.transactionId?.toLowerCase().includes(term) ||
+                            p.bookingReference?.toLowerCase().includes(term) ||
+                            p.guestEmail?.toLowerCase().includes(term)
+                          );
+                        }
+                        return true;
+                      })
+                      .map((p) => (
+                        <tr key={p._id}>
+                          <td>
+                            <code style={{ fontSize: "12px", background: "#f4efe6", padding: "2px 6px", borderRadius: "4px" }}>
+                              {p.transactionId}
+                            </code>
+                          </td>
+                          <td>
+                            <strong>{p.bookingReference}</strong>
+                          </td>
+                          <td>{p.guestEmail}</td>
+                          <td>
+                            <span
+                              style={{
+                                padding: "3px 8px",
+                                borderRadius: "4px",
+                                fontSize: "11px",
+                                fontWeight: "600",
+                                background: p.paymentMethod === "Wallet" ? "#fbf6ec" : "#eef4f8",
+                                color: p.paymentMethod === "Wallet" ? "#826231" : "#2b6cb0",
+                              }}
+                            >
+                              {p.paymentMethod}
+                            </span>
+                          </td>
+                          <td>
+                            <strong>₹{p.amount.toLocaleString("en-IN")}</strong>
+                          </td>
+                          <td>
+                            <span
+                              style={{
+                                padding: "3px 10px",
+                                borderRadius: "12px",
+                                fontSize: "11px",
+                                fontWeight: "bold",
+                                background:
+                                  p.status === "successful"
+                                    ? "#eaf7ee"
+                                    : p.status === "refunded"
+                                    ? "#fdf0f0"
+                                    : "#fff7e6",
+                                color:
+                                  p.status === "successful"
+                                    ? "#1f7a3f"
+                                    : p.status === "refunded"
+                                    ? "#a82e2e"
+                                    : "#b7791f",
+                              }}
+                            >
+                              {p.status}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: "12px", color: "#6a7b70" }}>
+                            {new Date(p.createdAt).toLocaleDateString("en-IN", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ============================================================== */}
+        {/* 7. WALLET LEDGER & MONITORING SECTION                            */}
+        {/* ============================================================== */}
+        {(activeSection === "all" || activeSection === "wallet") && (
+          <section className="admin-section-block" id="wallet">
+            <div className="section-title-row">
+              <div>
+                <h2>👛 Customer Wallet Ledger & Monitoring</h2>
+                <p>
+                  Audit all user wallet top-ups, reservation debits, refunds, and manual administrator adjustments.
+                </p>
+              </div>
+
+              <button onClick={loadWallet} className="filter-pill">
+                🔄 Refresh Ledger
+              </button>
+            </div>
+
+            {/* Wallet Circulation Summary */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "20px" }}>
+              <div style={{ background: "#ffffff", padding: "18px", borderRadius: "8px", border: "1px solid #e7ded2" }}>
+                <span style={{ fontSize: "12px", color: "#8a7c6a", textTransform: "uppercase" }}>Total Wallet Deposits</span>
+                <div style={{ fontSize: "22px", fontWeight: "700", color: "#1f7a3f", marginTop: "4px" }}>
+                  ₹{walletSummary.totalDeposited.toLocaleString("en-IN")}
+                </div>
+              </div>
+
+              <div style={{ background: "#ffffff", padding: "18px", borderRadius: "8px", border: "1px solid #e7ded2" }}>
+                <span style={{ fontSize: "12px", color: "#8a7c6a", textTransform: "uppercase" }}>Total Stays Paid via Wallet</span>
+                <div style={{ fontSize: "22px", fontWeight: "700", color: "#2b6cb0", marginTop: "4px" }}>
+                  ₹{walletSummary.totalSpent.toLocaleString("en-IN")}
+                </div>
+              </div>
+
+              <div style={{ background: "#ffffff", padding: "18px", borderRadius: "8px", border: "1px solid #e7ded2" }}>
+                <span style={{ fontSize: "12px", color: "#8a7c6a", textTransform: "uppercase" }}>Active Wallet Balance In Circulation</span>
+                <div style={{ fontSize: "22px", fontWeight: "700", color: "#c49d68", marginTop: "4px" }}>
+                  ₹{walletSummary.netCirculation.toLocaleString("en-IN")}
+                </div>
+              </div>
+            </div>
+
+            {loadingWallet ? (
+              <div className="empty-state-box">
+                <p>Loading wallet transactions...</p>
+              </div>
+            ) : walletTxns.length === 0 ? (
+              <div className="empty-state-box">
+                <h3>No Wallet Transactions</h3>
+                <p>Customer deposits and payments will be logged here in real-time.</p>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Customer</th>
+                      <th>Type</th>
+                      <th>Amount</th>
+                      <th>Category</th>
+                      <th>Description</th>
+                      <th>Balance After</th>
+                      <th>Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {walletTxns.map((t) => (
+                      <tr key={t._id}>
+                        <td>
+                          <strong>{t.userId?.fullName || "User"}</strong>
+                          <div style={{ fontSize: "11px", color: "#8a7c6a" }}>{t.userId?.email}</div>
+                        </td>
+                        <td>
+                          <span
+                            style={{
+                              padding: "3px 8px",
+                              borderRadius: "10px",
+                              fontSize: "11px",
+                              fontWeight: "bold",
+                              background: t.type === "credit" ? "#eaf7ee" : "#fdf0f0",
+                              color: t.type === "credit" ? "#1f7a3f" : "#a82e2e",
+                            }}
+                          >
+                            {t.type === "credit" ? "↓ Deposit (Credit)" : "↑ Payment (Debit)"}
+                          </span>
+                        </td>
+                        <td>
+                          <strong style={{ color: t.type === "credit" ? "#1f7a3f" : "#a82e2e" }}>
+                            {t.type === "credit" ? "+" : "-"}₹{t.amount.toLocaleString("en-IN")}
+                          </strong>
+                        </td>
+                        <td style={{ fontSize: "12px", textTransform: "capitalize" }}>
+                          {t.category?.replace("_", " ")}
+                        </td>
+                        <td style={{ fontSize: "13px", color: "#4f5c52" }}>
+                          {t.description || "Wallet transaction"}
+                        </td>
+                        <td>
+                          <strong>₹{t.balanceAfter?.toLocaleString("en-IN")}</strong>
+                        </td>
+                        <td style={{ fontSize: "12px", color: "#6a7b70" }}>
+                          {new Date(t.createdAt).toLocaleDateString("en-IN", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ============================================================== */}
+        {/* 8. MEDIA & GALLERY MANAGER SECTION                              */}
+        {/* ============================================================== */}
+        {(activeSection === "all" || activeSection === "media") && (
+          <section className="admin-section-block" id="media">
+            <div className="section-title-row">
+              <div>
+                <h2>🖼️ Media & Image Assets Library</h2>
+                <p>
+                  Upload luxury imagery directly to disk storage (Multer), organize by category, and copy dynamic image URLs to populate suites and website content.
+                </p>
+              </div>
+
+              <button onClick={loadMedia} className="filter-pill">
+                🔄 Refresh Gallery
+              </button>
+            </div>
+
+            {/* Upload New Image Box */}
+            <form
+              onSubmit={handleUploadMediaSubmit}
+              style={{
+                background: "#ffffff",
+                padding: "20px",
+                borderRadius: "8px",
+                border: "1px solid #e7ded2",
+                marginBottom: "24px",
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                gap: "14px",
+                alignItems: "end",
+              }}
+            >
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: "700", marginBottom: "6px" }}>
+                  SELECT IMAGE (MAX 10MB) *
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={mediaFileInputRef}
+                  onChange={(e) => setMediaFile(e.target.files[0])}
+                  required
+                  style={{ fontSize: "13px" }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: "700", marginBottom: "6px" }}>
+                  IMAGE TITLE
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Oceanfront Horizon Pool"
+                  value={mediaTitle}
+                  onChange={(e) => setMediaTitle(e.target.value)}
+                  style={{ width: "100%", padding: "8px 12px", borderRadius: "4px", border: "1px solid #dcd3c5", fontSize: "13px" }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: "700", marginBottom: "6px" }}>
+                  CATEGORY
+                </label>
+                <select
+                  value={mediaCategory}
+                  onChange={(e) => setMediaCategory(e.target.value)}
+                  style={{ width: "100%", padding: "8px 12px", borderRadius: "4px", border: "1px solid #dcd3c5", fontSize: "13px", background: "#fff" }}
+                >
+                  <option value="resort">Resort & Grounds</option>
+                  <option value="room">Suite & Room Interior</option>
+                  <option value="banner">Promotional Banner</option>
+                  <option value="gallery">Public Gallery</option>
+                </select>
+              </div>
+
+              <div>
+                <button
+                  type="submit"
+                  disabled={uploadingMedia}
+                  className="primary-button"
+                  style={{ width: "100%", padding: "10px 16px", fontSize: "13px" }}
+                >
+                  {uploadingMedia ? "Uploading..." : "📤 Upload Image"}
+                </button>
+              </div>
+            </form>
+
+            {/* Category Filter Pills */}
+            <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
+              {["all", "resort", "room", "banner", "gallery"].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setMediaCategoryFilter(cat)}
+                  className={`jump-link-btn ${mediaCategoryFilter === cat ? "active" : ""}`}
+                  style={{ textTransform: "capitalize", padding: "6px 14px", fontSize: "12px" }}
+                >
+                  {cat === "all" ? "All Images" : cat}
+                </button>
+              ))}
+            </div>
+
+            {loadingMedia ? (
+              <div className="empty-state-box">
+                <p>Loading media assets...</p>
+              </div>
+            ) : mediaList.length === 0 ? (
+              <div className="empty-state-box">
+                <h3>No Media Files Found</h3>
+                <p>Upload your first luxury resort image above to populate the asset library.</p>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "18px" }}>
+                {mediaList.map((m) => (
+                  <div
+                    key={m._id}
+                    style={{
+                      background: "#ffffff",
+                      borderRadius: "8px",
+                      overflow: "hidden",
+                      border: "1px solid #e7ded2",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                    }}
+                  >
+                    <div style={{ position: "relative", height: "140px", background: "#f0ebe2" }}>
+                      <img
+                        src={resolveImgUrl(m.url)}
+                        alt={m.title}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: "8px",
+                          right: "8px",
+                          background: "rgba(20,34,23,0.8)",
+                          color: "#c49d68",
+                          fontSize: "10px",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {m.category}
+                      </span>
+                    </div>
+
+                    <div style={{ padding: "12px" }}>
+                      <strong style={{ fontSize: "13px", display: "block", color: "#142217", marginBottom: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {m.title}
+                      </strong>
+                      <div style={{ fontSize: "11px", color: "#8a7c6a", marginBottom: "10px" }}>
+                        {(m.size / (1024 * 1024)).toFixed(2)} MB · {new Date(m.createdAt).toLocaleDateString()}
+                      </div>
+
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(m.url);
+                            showToast("Image URL copied to clipboard!");
+                          }}
+                          className="btn-sm-action"
+                          style={{ flex: 1, fontSize: "11px", padding: "5px 8px", background: "#fbf6ec", color: "#826231", border: "1px solid #c49d68" }}
+                        >
+                          📋 Copy URL
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMedia(m._id)}
+                          className="btn-sm-action btn-cancel-res"
+                          style={{ fontSize: "11px", padding: "5px 8px" }}
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ============================================================== */}
+        {/* 9. RESORT CONTENT CMS SECTION                                   */}
+        {/* ============================================================== */}
+        {(activeSection === "all" || activeSection === "cms") && (
+          <section className="admin-section-block" id="cms">
+            <div className="section-title-row">
+              <div>
+                <h2>📝 Website Content Management System (CMS)</h2>
+                <p>
+                  Dynamically customize public headlines, marketing narratives, contact information, and amenities displayed across the Viceroy homepage.
+                </p>
+              </div>
+
+              <button onClick={loadCms} className="filter-pill">
+                🔄 Refresh CMS
+              </button>
+            </div>
+
+            {loadingCms ? (
+              <div className="empty-state-box">
+                <p>Loading resort content...</p>
+              </div>
+            ) : (
+              <form
+                onSubmit={handleSaveCms}
+                style={{
+                  background: "#ffffff",
+                  padding: "24px",
+                  borderRadius: "8px",
+                  border: "1px solid #e7ded2",
+                }}
+              >
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px", marginBottom: "18px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", marginBottom: "6px" }}>
+                      RESORT NAME
+                    </label>
+                    <input
+                      type="text"
+                      value={cmsContent.resortName || ""}
+                      onChange={(e) => setCmsContent({ ...cmsContent, resortName: e.target.value })}
+                      style={{ width: "100%", padding: "9px 12px", borderRadius: "4px", border: "1px solid #dcd3c5" }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", marginBottom: "6px" }}>
+                      TAGLINE
+                    </label>
+                    <input
+                      type="text"
+                      value={cmsContent.tagline || ""}
+                      onChange={(e) => setCmsContent({ ...cmsContent, tagline: e.target.value })}
+                      style={{ width: "100%", padding: "9px 12px", borderRadius: "4px", border: "1px solid #dcd3c5" }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ borderTop: "1px solid #f0ebe2", paddingTop: "18px", marginBottom: "18px" }}>
+                  <h3 style={{ fontSize: "15px", fontFamily: "Georgia, serif", color: "#142217", marginBottom: "12px" }}>
+                    Hero Section
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "14px", marginBottom: "12px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: "700", marginBottom: "6px" }}>
+                        HERO EYEBROW
+                      </label>
+                      <input
+                        type="text"
+                        value={cmsContent.heroEyebrow || ""}
+                        onChange={(e) => setCmsContent({ ...cmsContent, heroEyebrow: e.target.value })}
+                        style={{ width: "100%", padding: "9px 12px", borderRadius: "4px", border: "1px solid #dcd3c5" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: "700", marginBottom: "6px" }}>
+                        HERO MAIN HEADLINE
+                      </label>
+                      <input
+                        type="text"
+                        value={cmsContent.heroTitle || ""}
+                        onChange={(e) => setCmsContent({ ...cmsContent, heroTitle: e.target.value })}
+                        style={{ width: "100%", padding: "9px 12px", borderRadius: "4px", border: "1px solid #dcd3c5" }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", marginBottom: "6px" }}>
+                      HERO NARRATIVE / DESCRIPTION
+                    </label>
+                    <textarea
+                      rows="3"
+                      value={cmsContent.heroDescription || ""}
+                      onChange={(e) => setCmsContent({ ...cmsContent, heroDescription: e.target.value })}
+                      style={{ width: "100%", padding: "9px 12px", borderRadius: "4px", border: "1px solid #dcd3c5" }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ borderTop: "1px solid #f0ebe2", paddingTop: "18px", marginBottom: "18px" }}>
+                  <h3 style={{ fontSize: "15px", fontFamily: "Georgia, serif", color: "#142217", marginBottom: "12px" }}>
+                    About Section
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "14px", marginBottom: "12px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: "700", marginBottom: "6px" }}>
+                        ABOUT EYEBROW
+                      </label>
+                      <input
+                        type="text"
+                        value={cmsContent.aboutEyebrow || ""}
+                        onChange={(e) => setCmsContent({ ...cmsContent, aboutEyebrow: e.target.value })}
+                        style={{ width: "100%", padding: "9px 12px", borderRadius: "4px", border: "1px solid #dcd3c5" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: "700", marginBottom: "6px" }}>
+                        ABOUT TITLE
+                      </label>
+                      <input
+                        type="text"
+                        value={cmsContent.aboutTitle || ""}
+                        onChange={(e) => setCmsContent({ ...cmsContent, aboutTitle: e.target.value })}
+                        style={{ width: "100%", padding: "9px 12px", borderRadius: "4px", border: "1px solid #dcd3c5" }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", marginBottom: "6px" }}>
+                      ABOUT DESCRIPTION
+                    </label>
+                    <textarea
+                      rows="3"
+                      value={cmsContent.aboutDescription || ""}
+                      onChange={(e) => setCmsContent({ ...cmsContent, aboutDescription: e.target.value })}
+                      style={{ width: "100%", padding: "9px 12px", borderRadius: "4px", border: "1px solid #dcd3c5" }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ borderTop: "1px solid #f0ebe2", paddingTop: "18px", marginBottom: "18px" }}>
+                  <h3 style={{ fontSize: "15px", fontFamily: "Georgia, serif", color: "#142217", marginBottom: "12px" }}>
+                    Contact & Concierge Information
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: "700", marginBottom: "6px" }}>
+                        CONCIERGE EMAIL
+                      </label>
+                      <input
+                        type="email"
+                        value={cmsContent.contactEmail || ""}
+                        onChange={(e) => setCmsContent({ ...cmsContent, contactEmail: e.target.value })}
+                        style={{ width: "100%", padding: "9px 12px", borderRadius: "4px", border: "1px solid #dcd3c5" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: "700", marginBottom: "6px" }}>
+                        CONCIERGE PHONE
+                      </label>
+                      <input
+                        type="text"
+                        value={cmsContent.contactPhone || ""}
+                        onChange={(e) => setCmsContent({ ...cmsContent, contactPhone: e.target.value })}
+                        style={{ width: "100%", padding: "9px 12px", borderRadius: "4px", border: "1px solid #dcd3c5" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: "700", marginBottom: "6px" }}>
+                        LOCATION
+                      </label>
+                      <input
+                        type="text"
+                        value={cmsContent.contactAddress || ""}
+                        onChange={(e) => setCmsContent({ ...cmsContent, contactAddress: e.target.value })}
+                        style={{ width: "100%", padding: "9px 12px", borderRadius: "4px", border: "1px solid #dcd3c5" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={savingCms}
+                  className="primary-button"
+                  style={{ padding: "12px 28px", fontSize: "14px" }}
+                >
+                  {savingCms ? "Saving Changes..." : "💾 Save Website Content Changes"}
+                </button>
+              </form>
+            )}
+          </section>
+        )}
+
+        {/* ============================================================== */}
+        {/* 10. ADMIN PROFILE SECTION                                      */}
         {/* ============================================================== */}
         {(activeSection === "all" || activeSection === "profile") && (
           <section className="admin-section-block" id="profile">
@@ -1997,7 +3265,7 @@ function AdminDashboard() {
                   <div className="profile-avatar-circle">
                     {(photoPreview || adminUser?.profilePhoto) ? (
                       <img
-                        src={photoPreview || adminUser?.profilePhoto}
+                        src={resolveImgUrl(photoPreview || adminUser?.profilePhoto)}
                         alt={adminUser?.fullName || "Admin"}
                         className="profile-avatar-img"
                       />
@@ -2473,9 +3741,9 @@ function AdminDashboard() {
                     <input
                       type="text"
                       name="location"
-                      placeholder="e.g. Maldives Horizon Coast"
+                      value="Munnar"
+                      placeholder="e.g. Munnar"
                       required
-                      value={newRoomForm.location}
                       onChange={(e) =>
                         setNewRoomForm({
                           ...newRoomForm,
@@ -2483,45 +3751,6 @@ function AdminDashboard() {
                         })
                       }
                     />
-                    <div className="preset-photo-buttons">
-                      <span style={{ fontSize: "11px", color: "#666" }}>Locations:</span>
-                      <button
-                        type="button"
-                        className="photo-chip"
-                        onClick={() =>
-                          setNewRoomForm((p) => ({ ...p, location: "Maldives Horizon Coast" }))
-                        }
-                      >
-                        Maldives
-                      </button>
-                      <button
-                        type="button"
-                        className="photo-chip"
-                        onClick={() =>
-                          setNewRoomForm((p) => ({ ...p, location: "Bali Tropical Botanical Valley" }))
-                        }
-                      >
-                        Bali
-                      </button>
-                      <button
-                        type="button"
-                        className="photo-chip"
-                        onClick={() =>
-                          setNewRoomForm((p) => ({ ...p, location: "Phuket Azure Peninsula" }))
-                        }
-                      >
-                        Phuket
-                      </button>
-                      <button
-                        type="button"
-                        className="photo-chip"
-                        onClick={() =>
-                          setNewRoomForm((p) => ({ ...p, location: "Goa Beachfront" }))
-                        }
-                      >
-                        Goa
-                      </button>
-                    </div>
                   </div>
 
                   <div className="form-group">
@@ -2607,36 +3836,76 @@ function AdminDashboard() {
 
                   <div className="form-group">
                     <label>Initial Status</label>
-                    <select
-                      name="status"
-                      value={newRoomForm.status}
-                      onChange={(e) =>
-                        setNewRoomForm({
-                          ...newRoomForm,
-                          status: e.target.value,
-                        })
-                      }
-                    >
-                      <option value="available">🟢 Available (Ready to Book)</option>
-                      <option value="booked">🔴 Booked (Occupied)</option>
-                    </select>
+                    <input
+                      type="text"
+                      disabled
+                      value="🟢 Available (Ready for Public Booking)"
+                      style={{
+                        background: "#f8f6f0",
+                        color: "#1e5e31",
+                        fontWeight: "600",
+                        cursor: "default",
+                      }}
+                    />
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label>Suite Photograph URL</label>
+                  <label>Suite Photograph</label>
                   <input
-                    type="text"
-                    name="image"
-                    value={newRoomForm.image}
-                    onChange={(e) =>
-                      setNewRoomForm({
-                        ...newRoomForm,
-                        image: e.target.value,
-                      })
-                    }
-                    placeholder="/images/home1.png"
+                    type="file"
+                    ref={suitePhotoInputRef}
+                    style={{ display: "none" }}
+                    accept="image/*"
+                    onChange={handleSuitePhotoUpload}
                   />
+                  <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "8px" }}>
+                    <input
+                      type="text"
+                      name="image"
+                      value={newRoomForm.image}
+                      onChange={(e) =>
+                        setNewRoomForm({
+                          ...newRoomForm,
+                          image: e.target.value,
+                        })
+                      }
+                      placeholder="/images/home1.png or Image URL"
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      className="btn-upload-photo"
+                      onClick={() => suitePhotoInputRef.current?.click()}
+                      style={{
+                        whiteSpace: "nowrap",
+                        padding: "8px 14px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                      }}
+                    >
+                      📁 Upload Photo from PC
+                    </button>
+                  </div>
+                  {newRoomForm.image && (
+                    <div style={{ marginBottom: "10px" }}>
+                      <img
+                        src={newRoomForm.image}
+                        alt="Suite preview"
+                        style={{
+                          width: "100%",
+                          maxHeight: "130px",
+                          objectFit: "cover",
+                          borderRadius: "6px",
+                          border: "1px solid #ddd",
+                        }}
+                        onError={(e) => {
+                          e.target.style.display = "none";
+                        }}
+                      />
+                    </div>
+                  )}
                   <div className="preset-photo-buttons">
                     <span style={{ fontSize: "11px", color: "#666" }}>Quick Presets:</span>
                     <button
@@ -2787,8 +4056,8 @@ function AdminDashboard() {
                       type="text"
                       name="location"
                       required
-                      placeholder="e.g. Maldives Horizon Coast"
-                      value={editRoomForm.location}
+                      value="Munnar"
+                      placeholder="e.g. Munnar"
                       onChange={(e) =>
                         setEditRoomForm({
                           ...editRoomForm,
@@ -2796,45 +4065,6 @@ function AdminDashboard() {
                         })
                       }
                     />
-                    <div className="preset-photo-buttons">
-                      <span style={{ fontSize: "11px", color: "#666" }}>Presets:</span>
-                      <button
-                        type="button"
-                        className="photo-chip"
-                        onClick={() =>
-                          setEditRoomForm((p) => ({ ...p, location: "Maldives Horizon Coast" }))
-                        }
-                      >
-                        Maldives
-                      </button>
-                      <button
-                        type="button"
-                        className="photo-chip"
-                        onClick={() =>
-                          setEditRoomForm((p) => ({ ...p, location: "Bali Tropical Botanical Valley" }))
-                        }
-                      >
-                        Bali
-                      </button>
-                      <button
-                        type="button"
-                        className="photo-chip"
-                        onClick={() =>
-                          setEditRoomForm((p) => ({ ...p, location: "Phuket Azure Peninsula" }))
-                        }
-                      >
-                        Phuket
-                      </button>
-                      <button
-                        type="button"
-                        className="photo-chip"
-                        onClick={() =>
-                          setEditRoomForm((p) => ({ ...p, location: "Goa Beachfront" }))
-                        }
-                      >
-                        Goa
-                      </button>
-                    </div>
                   </div>
 
                   <div className="form-group">
@@ -2935,7 +4165,6 @@ function AdminDashboard() {
                       }
                     >
                       <option value="available">🟢 Available (Bookable on website)</option>
-                      <option value="booked">🔴 Booked (Reserved)</option>
                       <option value="maintenance">🟡 Under Maintenance</option>
                     </select>
                   </div>
@@ -2943,18 +4172,61 @@ function AdminDashboard() {
 
                 {/* Photograph */}
                 <div className="form-group">
-                  <label>Suite Photograph URL</label>
+                  <label>Suite Photograph</label>
                   <input
-                    type="text"
-                    name="image"
-                    value={editRoomForm.image}
-                    onChange={(e) =>
-                      setEditRoomForm({
-                        ...editRoomForm,
-                        image: e.target.value,
-                      })
-                    }
+                    type="file"
+                    ref={editSuitePhotoInputRef}
+                    style={{ display: "none" }}
+                    accept="image/*"
+                    onChange={handleEditSuitePhotoUpload}
                   />
+                  <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "8px" }}>
+                    <input
+                      type="text"
+                      name="image"
+                      value={editRoomForm.image}
+                      onChange={(e) =>
+                        setEditRoomForm({
+                          ...editRoomForm,
+                          image: e.target.value,
+                        })
+                      }
+                      style={{ flex: 1 }}
+                      placeholder="/images/home1.png or image URL"
+                    />
+                    <button
+                      type="button"
+                      className="btn-upload-photo"
+                      onClick={() => editSuitePhotoInputRef.current?.click()}
+                      style={{
+                        whiteSpace: "nowrap",
+                        padding: "8px 14px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                      }}
+                    >
+                      📁 Upload Photo from PC
+                    </button>
+                  </div>
+                  {editRoomForm.image && (
+                    <div style={{ marginBottom: "10px" }}>
+                      <img
+                        src={editRoomForm.image}
+                        alt="Suite preview"
+                        style={{
+                          width: "100%",
+                          maxHeight: "130px",
+                          objectFit: "cover",
+                          borderRadius: "6px",
+                          border: "1px solid #ddd",
+                        }}
+                        onError={(e) => {
+                          e.target.style.display = "none";
+                        }}
+                      />
+                    </div>
+                  )}
                   <div className="preset-photo-buttons">
                     <span style={{ fontSize: "11px", color: "#666" }}>Presets:</span>
                     <button
@@ -2964,7 +4236,7 @@ function AdminDashboard() {
                         setEditRoomForm((p) => ({ ...p, image: "/images/viceroy-bedroom.jpg" }))
                       }
                     >
-                      Oceanfront Pavilion
+                    Highland Family Villa
                     </button>
                     <button
                       type="button"
@@ -3142,6 +4414,91 @@ function AdminDashboard() {
                   disabled={sendingReply}
                 >
                   {sendingReply ? "Sending Email..." : "✉️ Send Official Reply"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Wallet Adjustment Modal */}
+      {adjustWalletModal.open && (
+        <div className="modal-overlay" onClick={() => setAdjustWalletModal({ open: false, user: null, amount: "", type: "credit", description: "" })}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "480px" }}>
+            <div className="modal-header">
+              <div>
+                <span className="modal-eyebrow">ADMINISTRATIVE ACTION</span>
+                <h3>👛 Adjust User Wallet Balance</h3>
+              </div>
+              <button
+                type="button"
+                className="close-btn"
+                onClick={() => setAdjustWalletModal({ open: false, user: null, amount: "", type: "credit", description: "" })}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAdjustWalletSubmit} className="modal-form">
+              <div style={{ background: "#fbf6ec", padding: "12px 16px", borderRadius: "6px", marginBottom: "16px", border: "1px solid #c49d68" }}>
+                <div><strong>User:</strong> {adjustWalletModal.user?.fullName} ({adjustWalletModal.user?.email})</div>
+                <div style={{ marginTop: "4px" }}>
+                  <strong>Current Balance:</strong> ₹{(adjustWalletModal.user?.walletBalance || 0).toLocaleString("en-IN")}
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "14px" }}>
+                <label>Action Type</label>
+                <select
+                  value={adjustWalletModal.type}
+                  onChange={(e) => setAdjustWalletModal({ ...adjustWalletModal, type: e.target.value })}
+                  style={{ width: "100%", padding: "9px 12px", borderRadius: "4px", border: "1px solid #dcd3c5" }}
+                >
+                  <option value="credit">➕ Credit (Add funds to user wallet)</option>
+                  <option value="debit">➖ Debit (Deduct funds from user wallet)</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "14px" }}>
+                <label>Amount (₹) *</label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  placeholder="e.g. 5000"
+                  value={adjustWalletModal.amount}
+                  onChange={(e) => setAdjustWalletModal({ ...adjustWalletModal, amount: e.target.value })}
+                  style={{ width: "100%", padding: "9px 12px", borderRadius: "4px", border: "1px solid #dcd3c5" }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "20px" }}>
+                <label>Reason / Audit Description *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. VIP courtesy credit, resolution refund"
+                  value={adjustWalletModal.description}
+                  onChange={(e) => setAdjustWalletModal({ ...adjustWalletModal, description: e.target.value })}
+                  style={{ width: "100%", padding: "9px 12px", borderRadius: "4px", border: "1px solid #dcd3c5" }}
+                />
+              </div>
+
+              <div className="modal-footer" style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button
+                  type="button"
+                  className="btn-modal-cancel"
+                  onClick={() => setAdjustWalletModal({ open: false, user: null, amount: "", type: "credit", description: "" })}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingAdjust}
+                  className="primary-button"
+                  style={{ padding: "10px 20px" }}
+                >
+                  {submittingAdjust ? "Applying..." : "Confirm Adjustment"}
                 </button>
               </div>
             </form>

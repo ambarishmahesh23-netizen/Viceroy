@@ -10,7 +10,17 @@ import roomRoutes from "./routes/roomRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import contentRoutes from "./routes/contentRoutes.js";
+import mediaRoutes from "./routes/mediaRoutes.js";
+import walletRoutes from "./routes/walletRoutes.js";
 import router from "./routes/homeRoutes.js";
+import errorHandler from "./middleware/errorMIddleware.js";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -24,6 +34,9 @@ app.use(cors({
   credentials: true
 }));
 
+// Serve uploaded files statically
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 app.use(router);
 
 // API routes (All 20 Modules MERN architecture)
@@ -33,6 +46,13 @@ app.use("/api/rooms", roomRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/content", contentRoutes);
+app.use("/api/media", mediaRoutes);
+app.use("/api/wallet", walletRoutes);
+
+// Error Handling Middleware
+app.use(errorHandler);
 
 // Start server after connecting to MongoDB
 connectDB()

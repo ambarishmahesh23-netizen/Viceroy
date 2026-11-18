@@ -1,0 +1,524 @@
+/* ===== Viceroy Resort Munnar - Dedicated Payment Page ===== */
+
+.payment-page {
+  min-height: 100vh;
+  padding: 60px 7%;
+  background: #f8f6f1;
+  color: #24352d;
+  font-family: "Georgia", "Times New Roman", serif;
+}
+
+.payment-container {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.payment-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.btn-back-to-booking {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  color: #142217;
+  border: 1px solid #dcd3c4;
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.btn-back-to-booking:hover {
+  background: #f4eee2;
+  border-color: #c49d68;
+  color: #142217;
+  transform: translateX(-2px);
+}
+
+.payment-step-badge {
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #8c6f44;
+  background: #fdf6e9;
+  border: 1px solid #eadbc1;
+  padding: 6px 14px;
+  border-radius: 20px;
+}
+
+/* Heading */
+.payment-heading {
+  text-align: center;
+  margin-bottom: 35px;
+}
+
+.payment-heading p.eyebrow {
+  margin-bottom: 12px;
+  color: #9a8055;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 4px;
+}
+
+.payment-heading h1 {
+  margin: 0 auto 12px;
+  color: #142217;
+  font-size: clamp(30px, 4vw, 44px);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.payment-heading p.subtitle {
+  max-width: 620px;
+  margin: 0 auto;
+  color: #6e6b66;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Stepper */
+.payment-stepper {
+  max-width: 740px;
+  margin: 0 auto 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: #ffffff;
+  padding: 14px 28px;
+  border-radius: 8px;
+  border: 1px solid #e5decfa8;
+  box-shadow: 0 4px 18px rgba(20, 34, 23, 0.04);
+}
+
+.payment-stepper .step-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: Arial, sans-serif;
+  text-decoration: none;
+}
+
+.payment-stepper .step-item.completed {
+  color: #1f7a3f;
+  cursor: pointer;
+}
+
+.payment-stepper .step-item.active {
+  background: #fbf7ee;
+  border: 1px solid #dfc79b;
+  color: #142217;
+}
+
+.payment-stepper .circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.payment-stepper .step-item.completed .circle {
+  background: #eaf6ee;
+  color: #1f7a3f;
+  border: 1px solid #a3d9b4;
+}
+
+.payment-stepper .step-item.active .circle {
+  background: #142217;
+  color: #c49d68;
+}
+
+.payment-stepper .stepper-line {
+  flex: 1;
+  max-width: 80px;
+  height: 2px;
+  background: #ded7c9;
+}
+
+/* 2-Column Layout */
+.payment-layout-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 36px;
+  align-items: start;
+}
+
+/* Left Sections */
+.payment-panel {
+  background: #ffffff;
+  border: 1px solid #e5decf;
+  border-radius: 8px;
+  padding: 32px 36px;
+  margin-bottom: 28px;
+  box-shadow: 0 4px 16px rgba(20, 34, 23, 0.03);
+}
+
+.panel-title {
+  margin: 0 0 20px;
+  font-size: 20px;
+  font-weight: 500;
+  color: #142217;
+  border-bottom: 1px solid #f0e9df;
+  padding-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-title small {
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  color: #8c6f44;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* Selected Suites Cards */
+.checkout-suite-card {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 16px;
+  padding: 14px;
+  background: #fdfbf7;
+  border: 1px solid #ece4d7;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+
+.checkout-suite-img {
+  width: 100px;
+  height: 75px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #e9e3d8;
+}
+
+.checkout-suite-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.checkout-suite-info h4 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: #142217;
+  font-weight: 600;
+}
+
+.checkout-suite-info p {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  color: #666;
+}
+
+.checkout-suite-price {
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #8c6f44;
+  margin-top: 4px !important;
+}
+
+/* Dates pill row */
+.checkout-dates-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  background: #f7f3ec;
+  padding: 14px 18px;
+  border-radius: 6px;
+  margin-bottom: 24px;
+  font-family: Arial, sans-serif;
+}
+
+.checkout-dates-row .date-item small {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #8a7c6a;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.checkout-dates-row .date-item strong {
+  display: block;
+  font-size: 14px;
+  color: #142217;
+  margin-top: 2px;
+}
+
+/* Payment Method Selection */
+.payment-methods-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.payment-method-tile {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 6px;
+  border: 1px solid #dcd3c4;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.payment-method-tile:hover {
+  background: #fcfaf6;
+  border-color: #c49d68;
+}
+
+.payment-method-tile.selected {
+  border: 2px solid #142217;
+  background: #fbf8f2;
+}
+
+.payment-method-tile input[type="radio"] {
+  margin-top: 4px;
+  accent-color: #142217;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.payment-method-tile .tile-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.payment-method-tile strong {
+  font-family: Arial, sans-serif;
+  font-size: 15px;
+  color: #142217;
+}
+
+.badge-recommended {
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: #142217;
+  color: #c49d68;
+}
+
+.payment-method-tile p {
+  margin: 6px 0 0;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
+
+/* Wallet Banner */
+.wallet-box {
+  margin-top: 14px;
+  padding: 14px 18px;
+  background: #fbfaf6;
+  border: 1px solid #dceada;
+  border-radius: 6px;
+  font-family: Arial, sans-serif;
+}
+
+.wallet-box.insufficient {
+  background: #fff8f8;
+  border-color: #fed7d7;
+}
+
+/* Right Sticky Sidebar */
+.payment-sidebar {
+  position: sticky;
+  top: 24px;
+}
+
+.order-summary-card {
+  background: #ffffff;
+  border: 1px solid #e5decf;
+  border-radius: 8px;
+  padding: 32px 28px;
+  box-shadow: 0 8px 30px rgba(20, 34, 23, 0.05);
+}
+
+.order-summary-card h3 {
+  margin: 0 0 20px;
+  font-size: 22px;
+  color: #142217;
+  border-bottom: 1px solid #f0e9df;
+  padding-bottom: 12px;
+}
+
+.order-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: Arial, sans-serif;
+  margin-bottom: 24px;
+}
+
+.order-summary-table td {
+  padding: 10px 0;
+  font-size: 14px;
+  color: #555;
+}
+
+.order-summary-table td:last-child {
+  text-align: right;
+  font-weight: 600;
+  color: #142217;
+}
+
+.order-summary-table tr.total-row td {
+  padding-top: 16px;
+  border-top: 2px solid #142217;
+  font-size: 18px;
+  font-weight: 700;
+  color: #142217;
+}
+
+.order-summary-table tr.total-row td:last-child {
+  color: #8c6f44;
+  font-size: 22px;
+}
+
+/* Main Checkout Button */
+.btn-checkout-confirm {
+  width: 100%;
+  padding: 16px 24px;
+  background: #142217;
+  color: #ffffff;
+  border: 1px solid #142217;
+  border-radius: 6px;
+  font-family: Arial, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 14px rgba(20, 34, 23, 0.2);
+}
+
+.btn-checkout-confirm:hover:not(:disabled) {
+  background: #253d2b;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(20, 34, 23, 0.25);
+}
+
+.btn-checkout-confirm:disabled {
+  background: #c5bdb0;
+  border-color: #c5bdb0;
+  color: #f7f5f0;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Security Trust Badges */
+.security-notice-list {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid #f0e9df;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  color: #6e6b66;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.security-notice-list span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Empty State Card */
+.empty-payment-card {
+  max-width: 600px;
+  margin: 60px auto;
+  text-align: center;
+  background: #ffffff;
+  padding: 56px 40px;
+  border-radius: 8px;
+  border: 1px solid #e5decf;
+  box-shadow: 0 4px 20px rgba(20, 34, 23, 0.05);
+}
+
+.empty-payment-card h2 {
+  font-size: 28px;
+  color: #142217;
+  margin: 0 0 12px;
+}
+
+.empty-payment-card p {
+  color: #666;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 28px;
+}
+
+/* Responsiveness */
+@media (max-width: 960px) {
+  .payment-layout-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-sidebar {
+    position: static;
+  }
+
+  .payment-page {
+    padding: 40px 5%;
+  }
+
+  .payment-panel {
+    padding: 24px 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  .checkout-dates-row {
+    grid-template-columns: 1fr;
+  }
+
+  .checkout-suite-card {
+    grid-template-columns: 1fr;
+    text-align: left;
+  }
+
+  .checkout-suite-img {
+    width: 100%;
+    height: 140px;
+  }
+}

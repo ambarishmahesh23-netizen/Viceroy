@@ -6,49 +6,62 @@ import sendEmail from "../utils/sendEmail.js";
 // @access  Public
 export const createEnquiry = async (req, res) => {
   try {
-    const {
-      firstName,
-      lastName,
-      emailAddress,
-      phoneNumber,
-      suitePreference,
-      remarks,
-    } = req.body;
+    const rawName = (req.body.name || "").trim();
+    let firstName = (req.body.firstName || "").trim();
+    let lastName = (req.body.lastName || "").trim();
 
-    if (!firstName || !lastName || !emailAddress) {
+    if (rawName && (!firstName || !lastName)) {
+      const parts = rawName.split(" ");
+      firstName = firstName || parts[0];
+      lastName = lastName || parts.slice(1).join(" ") || parts[0];
+    }
+
+    const email = (req.body.email || req.body.emailAddress || "").trim().toLowerCase();
+    const phone = (req.body.phone || req.body.phoneNumber || "").trim();
+    const subject = (req.body.subject || req.body.suitePreference || "General Inquiry").trim();
+    const message = (req.body.message || req.body.remarks || "").trim();
+
+    if (!email || (!firstName && !rawName)) {
       return res.status(400).json({
         success: false,
-        message: "First name, last name, and email address are required",
+        message: "Guest name and email address are required to submit an inquiry",
       });
     }
 
+    const fullName = rawName || `${firstName} ${lastName}`.trim();
+
     const enquiry = await Enquiry.create({
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      emailAddress: emailAddress.trim().toLowerCase(),
-      phoneNumber: phoneNumber?.trim() || "",
-      suitePreference: suitePreference?.trim() || "Deluxe Room",
-      remarks: remarks?.trim() || "",
+      firstName: firstName || "Guest",
+      lastName: lastName || "Inquiry",
+      name: fullName,
+      emailAddress: email,
+      email: email,
+      phoneNumber: phone,
+      phone: phone,
+      suitePreference: subject,
+      subject: subject,
+      remarks: message,
+      message: message,
       status: "New",
     });
 
     // Optionally attempt sending an automated confirmation to guest
     try {
       await sendEmail({
-        to: enquiry.emailAddress,
+        to: email,
         subject: "We have received your inquiry - Viceroy Resort",
-        text: `Dear ${enquiry.firstName},\n\nThank you for contacting Viceroy Resort regarding the ${enquiry.suitePreference}. Our concierge team has received your inquiry and will reach out to you shortly.\n\nWarm regards,\nViceroy Concierge Team`,
+        text: `Dear ${enquiry.firstName || enquiry.name},\n\nThank you for contacting Viceroy Resort regarding the ${enquiry.suitePreference || enquiry.subject}. Our concierge team has received your inquiry and will reach out to you shortly.\n\nWarm regards,\nViceroy Concierge Team`,
         html: `
           <div style="font-family: 'Georgia', serif; max-width: 600px; margin: 0 auto; padding: 32px 24px; background: #faf8f5; border: 1px solid #e2dad0; color: #232d25;">
             <h1 style="color: #142217; letter-spacing: 2px; font-size: 22px; text-transform: uppercase; margin-bottom: 8px;">Viceroy Resort</h1>
             <p style="color: #c49d68; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 0;">Concierge Service</p>
             <hr style="border: none; border-top: 1px solid #e2dad0; margin: 20px 0;" />
-            <p style="font-size: 16px;">Dear ${enquiry.firstName} ${enquiry.lastName},</p>
-            <p style="line-height: 1.6; color: #3a453c;">Thank you for contacting Viceroy Resort. We have received your inquiry regarding the <strong>${enquiry.suitePreference}</strong>.</p>
+            <p style="font-size: 16px;">Dear ${enquiry.firstName || enquiry.name},</p>
+            <p style="line-height: 1.6; color: #3a453c;">Thank you for contacting Viceroy Resort. We have received your inquiry regarding <strong>${enquiry.subject || enquiry.suitePreference}</strong>.</p>
             <p style="line-height: 1.6; color: #3a453c;">Our dedicated concierge team is curating the details for your stay and will reply to you shortly.</p>
             <div style="background: #ffffff; padding: 16px; border-left: 3px solid #c49d68; margin: 24px 0;">
               <p style="margin: 0; font-size: 14px; color: #555;"><strong>Your Message:</strong></p>
-              <p style="margin: 6px 0 0; font-style: italic; color: #666;">"${enquiry.remarks || "No additional remarks"}"</p>
+              <p style="margin: 6px 0 0; font-style: italic; color: #666;">"${enquiry.message || enquiry.remarks || "No additional remarks"}"</p>
             </div>
             <p style="margin-top: 30px; font-size: 14px; color: #666;">Warm regards,<br><strong style="color: #142217;">The Viceroy Concierge Team</strong></p>
           </div>

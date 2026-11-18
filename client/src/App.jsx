@@ -4,6 +4,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Booking from "./pages/Booking";
+import Payment from "./pages/Payment";
 import BookingConfirmation from "./pages/BookingConfirmation";
 import Profile from "./pages/Profile";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -42,6 +43,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <Booking />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/payment"
+            element={
+              <ProtectedRoute>
+                <Payment />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/booking/payment"
+            element={
+              <ProtectedRoute>
+                <Payment />
               </ProtectedRoute>
             }
           />

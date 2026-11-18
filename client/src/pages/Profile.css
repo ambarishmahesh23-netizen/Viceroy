@@ -699,3 +699,23 @@
 .btn-modal-action.btn-danger:hover {
   background: #991b1b;
 }
+
+@media (max-width: 600px) {
+  .profile-header-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 24px 18px;
+  }
+  .profile-tabs-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .profile-tab-btn {
+    flex: 1 1 calc(50% - 6px);
+    font-size: 11px;
+    padding: 8px 10px;
+    text-align: center;
+  }
+}

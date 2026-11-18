@@ -153,7 +153,7 @@ function Navbar() {
           >
             {currentUser.profilePhoto ? (
               <img
-                src={currentUser.profilePhoto}
+                src={currentUser.profilePhoto.startsWith("http") || currentUser.profilePhoto.startsWith("data:") ? currentUser.profilePhoto : `http://localhost:4000${currentUser.profilePhoto}`}
                 alt={currentUser.fullName || "User"}
                 style={{
                   width: "22px",

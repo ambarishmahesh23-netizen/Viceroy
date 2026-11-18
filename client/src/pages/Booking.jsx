@@ -1,15 +1,11 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import {
-  createBookingReservation,
   checkDateRangeAvailability,
   fetchRooms,
   fetchAdminProfile,
   fetchMyBookings,
-  loadRazorpayScript,
-  createRazorpayOrder,
-  verifyRazorpayPayment,
 } from "../api/adminApi";
 import "./Booking.css";
 
@@ -36,68 +32,222 @@ const getDaysDifference = (checkInStr, checkOutStr) => {
   const [y2, m2, d2] = checkOutStr.split("-").map(Number);
   const utc1 = Date.UTC(y1, m1 - 1, d1);
   const utc2 = Date.UTC(y2, m2 - 1, d2);
-  const diffDays = Math.floor((utc2 - utc1) / (1000 * 60 * 60 * 24));
+  const diffDays = Math.round((utc2 - utc1) / (1000 * 60 * 60 * 24));
   return Math.max(1, diffDays);
 };
 
-// Default luxury suites (Each suite with 4 rooms in different locations)
-const defaultSuites = [
+const resolveImgUrl = (url) => {
+  if (!url) return "/images/munnar-room-living.jpg";
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("blob:") || url.startsWith("data:")) {
+    return url;
+  }
+  if (url.startsWith("/uploads/")) {
+    return `http://localhost:4000${url}`;
+  }
+  return url;
+};
+
+// Signature Munnar Three Room Types
+
+// Metadata for the Three Signature Munnar Room Types
+export const ROOM_CATEGORIES_METADATA = {
+  family: {
+    key: "family",
+    name: "Family Rooms",
+    tagline: "Multiple beds and space for families",
+    badge: "UP TO 6 GUESTS · MULTI-BED",
+    priceText: "₹16,000 / night",
+    primaryImg: "/images/munnar-room-living.jpg",
+    description:
+      "Multiple beds and space for families. Features a cozy wood-burning stone fireplace, interconnected family bedroom spaces, mountain-view balcony, and spacious living area above the Munnar clouds.",
+    photos: [
+      {
+        label: "Fireplace Living Room",
+        img: "/images/munnar-room-living.jpg",
+        desc: "Cozy wood-burning stone fireplace & panoramic mountain tea estate vista.",
+      },
+      {
+        label: "Multiple Family Beds",
+        img: "/images/munnar-room-bedroom.jpg",
+        desc: "Spacious sleeping quarters with multiple beds crafted from Kerala teak.",
+      },
+      {
+        label: "Tea Mountain Balcony",
+        img: "/images/balcony.png",
+        desc: "Private sit-out balcony overlooking misty morning tea gardens.",
+      },
+      {
+        label: "Family Dining Area",
+        img: "/images/dinningarea.png",
+        desc: "Private highland dining salon for shared meals above the clouds.",
+      },
+    ],
+  },
+  garden: {
+    key: "garden",
+    name: "Garden Rooms",
+    tagline: "Private villa surrounded by greenery",
+    badge: "NATURE VILLA · GREENERY",
+    priceText: "₹14,000 / night",
+    primaryImg: "/images/garden.png",
+    description:
+      "Private villa surrounded by greenery, misty flora, and flowering pathways. Features direct garden access, stone walkway, stream bridge views, and secluded outdoor deck in nature.",
+    photos: [
+      {
+        label: "Private Green Villa",
+        img: "/images/garden.png",
+        desc: "Standalone secluded cottage villa enveloped in botanical greenery.",
+      },
+      {
+        label: "Stream & Bridge Walkway",
+        img: "/images/munnar-signup.jpg",
+        desc: "Misty stone footpaths and wooden bridge over crystal mountain streams.",
+      },
+      {
+        label: "Valley Infinity Pool",
+        img: "/images/poolarea.png",
+        desc: "Highland mountain pool overlooking lush tea slopes and mountain air.",
+      },
+      {
+        label: "Verdant Garden Balcony",
+        img: "/images/balcony.png",
+        desc: "Private balcony surrounded by indigenous ferns, flora, and tea bushes.",
+      },
+    ],
+  },
+  presidential: {
+    key: "presidential",
+    name: "Presidential Rooms",
+    tagline: "Premium accommodation with multiple rooms",
+    badge: "PREMIUM MULTI-ROOM · BUTLER",
+    priceText: "₹25,000 / night",
+    primaryImg: "/images/munnar-room-bedroom.jpg",
+    description:
+      "Premium accommodation with multiple rooms. Features a grand four-poster master suite, arched private dining salon, artisan copper & natural slate bath, 360° estate mist views, and dedicated 24/7 butler care.",
+    photos: [
+      {
+        label: "Royal Four-Poster Master",
+        img: "/images/munnar-room-bedroom.jpg",
+        desc: "Four-poster teak master bedroom overlooking rolling misty peaks.",
+      },
+      {
+        label: "Arched Dining Salon",
+        img: "/images/munnar-room-dining.jpg",
+        desc: "Grand private dining salon framed by stone arches and estate views.",
+      },
+      {
+        label: "Copper & Slate Luxury Bath",
+        img: "/images/munnar-room-bath.jpg",
+        desc: "Artisan hammered copper wash basin, rain shower, and mountain view window.",
+      },
+      {
+        label: "Summit Estate Panorama",
+        img: "/images/frontview.png",
+        desc: "Sweeping summit view of Viceroy Munnar cottages amidst tea plantations.",
+      },
+    ],
+  },
+};
+
+export const getCategoryMeta = (category = "", name = "") => {
+  const c = `${category} ${name}`.toLowerCase();
+  if (c.includes("garden")) return ROOM_CATEGORIES_METADATA.garden;
+  if (c.includes("presidential")) return ROOM_CATEGORIES_METADATA.presidential;
+  return ROOM_CATEGORIES_METADATA.family;
+};
+
+const DEFAULT_MUNNAR_SUITES = [
   {
-    _id: "default-1",
+    _id: "room-family-101",
     roomNumber: "101",
-    name: "Travertine Ocean Horizon Pavilion",
-    location: "Maldives Horizon Coast",
+    name: "Highland Family Villa",
+    location: "Munnar Tea Slopes · 5,200 ft",
+    category: "Family Rooms",
+    pricePerNight: 16000,
+    price: 16000,
+    capacity: 6,
     totalRooms: 4,
-    freeRoomsCount: 4,
-    bookedRoomsCount: 0,
-    roomNumbers: ["101-1", "101-2", "101-3", "101-4"],
-    availableRoomNumbers: ["101-1", "101-2", "101-3", "101-4"],
-    bookedRoomNumbers: [],
-    category: "Ocean View Suite",
-    pricePerNight: 15000,
-    image: "/images/viceroy-bedroom.jpg",
     status: "available",
-    description: "Panoramic oceanfront suite in Maldives featuring 4 private rooms, soaking terrace & daybed",
+    image: "/images/munnar-room-living.jpg",
+    images: [
+      "/images/munnar-room-living.jpg",
+      "/images/munnar-room-bedroom.jpg",
+      "/images/balcony.png",
+      "/images/dinningarea.png",
+    ],
+    amenities: [
+      "Multiple Beds & Family Living Space",
+      "Wood-Burning Stone Fireplace",
+      "Misty Mountain View Balcony",
+      "Complimentary High Tea for Family",
+      "High-speed Wi-Fi",
+      "Children's Welcome Kit",
+    ],
+    description:
+      "Multiple beds and space for families. Features a stone fireplace, private balcony overlooking tea estates, interconnected sleeping spaces, and plenty of space to relax together above the clouds.",
   },
   {
-    _id: "default-2",
+    _id: "room-garden-102",
     roomNumber: "102",
-    name: "Private Garden Sanctuary",
-    location: "Bali Tropical Botanical Valley",
+    name: "Botanical Garden Villa",
+    location: "Munnar Botanical Valley · 5,200 ft",
+    category: "Garden Rooms",
+    pricePerNight: 14000,
+    price: 14000,
+    capacity: 4,
     totalRooms: 4,
-    freeRoomsCount: 4,
-    bookedRoomsCount: 0,
-    roomNumbers: ["102-1", "102-2", "102-3", "102-4"],
-    availableRoomNumbers: ["102-1", "102-2", "102-3", "102-4"],
-    bookedRoomNumbers: [],
-    category: "Luxury Suite",
-    pricePerNight: 10000,
-    image: "/images/viceroy-bath.jpg",
     status: "available",
-    description: "Restorative wellness sanctuary in Bali featuring 4 rooms immersed in lush botanical flora",
+    image: "/images/garden.png",
+    images: [
+      "/images/garden.png",
+      "/images/munnar-signup.jpg",
+      "/images/poolarea.png",
+      "/images/balcony.png",
+    ],
+    amenities: [
+      "Private Villa Surrounded by Greenery",
+      "Direct Garden & Pathway Access",
+      "Stone Walkway & Stream Bridge Views",
+      "Private Outdoor Deck",
+      "Organic Tea Bar",
+      "Deep Soaking Tub",
+    ],
+    description:
+      "Private villa surrounded by greenery, misty slopes, and lush flora. Features direct garden access, stone pathways, wooden bridge views, secluded outdoor sitting deck, and peaceful nature walks.",
   },
   {
-    _id: "default-3",
+    _id: "room-presidential-103",
     roomNumber: "103",
-    name: "Architectural Coastal Villa",
-    location: "Phuket Azure Peninsula",
-    totalRooms: 4,
-    freeRoomsCount: 4,
-    bookedRoomsCount: 0,
-    roomNumbers: ["103-1", "103-2", "103-3", "103-4"],
-    availableRoomNumbers: ["103-1", "103-2", "103-3", "103-4"],
-    bookedRoomNumbers: [],
-    category: "Royal Beach Villa",
+    name: "Royal Presidential Sanctuary",
+    location: "Munnar Summit Peak · 5,200 ft",
+    category: "Presidential Rooms",
     pricePerNight: 25000,
-    image: "/images/viceroy-villa.jpg",
+    price: 25000,
+    capacity: 4,
+    totalRooms: 4,
     status: "available",
-    description: "Multi-level private estate in Phuket featuring 4 king suites, infinity plunge pool & personal butler",
+    image: "/images/munnar-room-bedroom.jpg",
+    images: [
+      "/images/munnar-room-bedroom.jpg",
+      "/images/munnar-room-dining.jpg",
+      "/images/munnar-room-bath.jpg",
+      "/images/frontview.png",
+    ],
+    amenities: [
+      "Premium Accommodation with Multiple Rooms",
+      "Master Four-Poster Teak Suite",
+      "Private Arched Dining Salon",
+      "Artisan Copper & Slate Luxury Bath",
+      "24/7 Dedicated Butler Service",
+      "Panoramic 360° Cloud & Estate Views",
+    ],
+    description:
+      "Premium accommodation with multiple rooms. Features a grand four-poster master suite, separate arched dining salon, handcrafted copper & slate bath, panoramic 360° cloud views, and dedicated 24/7 personal butler care.",
   },
 ];
 
 function Booking() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
 
   const currentUser = (() => {
     try {
@@ -111,23 +261,16 @@ function Booking() {
   const todayStr = getTodayString();
   const tomorrowStr = getTomorrowString(todayStr);
 
-  // Multi-page step flow: Step 1 (Details & Multi-Suite Selection) vs Step 2 (Payment & Review)
-  const currentStep = searchParams.get("step") === "2" ? 2 : 1;
-  const goToStep = (step) => {
-    if (step === 2) {
-      setSearchParams({ step: "2" });
-    } else {
-      setSearchParams({});
-    }
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  // Modal for previewing Munnar suite interior photos
+  const [activePhotoModal, setActivePhotoModal] = useState(null);
 
   // Dates
   const [checkIn, setCheckIn] = useState(todayStr);
   const [checkOut, setCheckOut] = useState(tomorrowStr);
 
   // Suites & Availability Inventory
-  const [availableSuites, setAvailableSuites] = useState(defaultSuites);
+  const [availableSuites, setAvailableSuites] = useState([]);
+  const [loadingSuites, setLoadingSuites] = useState(true);
   const [suiteFilter, setSuiteFilter] = useState("all"); // 'all' | 'available' | 'booked'
 
   // Multi-Suite Selection Map: { [suiteId]: { suite, roomsCount } }
@@ -144,10 +287,6 @@ function Booking() {
   const [guestName, setGuestName] = useState(currentUser?.fullName || "");
   const [email, setEmail] = useState(currentUser?.email || "");
   const [phone, setPhone] = useState(currentUser?.phone || "");
-
-  // Payment Options
-  const [paymentMethod, setPaymentMethod] = useState("Razorpay");
-  const [walletBalance, setWalletBalance] = useState(currentUser?.walletBalance || 0);
 
   // Processing state
   const [submitting, setSubmitting] = useState(false);
@@ -196,7 +335,6 @@ function Booking() {
             if (!guestName && user.fullName) setGuestName(user.fullName);
             if (!email && user.email) setEmail(user.email);
             if (!phone && user.phone) setPhone(user.phone);
-            if (typeof user.walletBalance === "number") setWalletBalance(user.walletBalance);
           }
         })
         .catch(() => {});
@@ -210,27 +348,30 @@ function Booking() {
         .catch(() => {});
     }
 
+    // Restore draft state if user returned from payment page
+    try {
+      const storedDraft = sessionStorage.getItem("viceroy_booking_draft");
+      if (storedDraft) {
+        const draft = JSON.parse(storedDraft);
+        if (draft.checkIn) setCheckIn(draft.checkIn);
+        if (draft.checkOut) setCheckOut(draft.checkOut);
+        if (draft.guestName) setGuestName(draft.guestName);
+        if (draft.email) setEmail(draft.email);
+        if (draft.phone) setPhone(draft.phone);
+        if (Array.isArray(draft.roomGuests) && draft.roomGuests.length > 0) {
+          setRoomGuests(draft.roomGuests);
+        }
+      }
+    } catch {}
+
     // Load dynamic rooms from database
     fetchRooms()
       .then((data) => {
         const roomsList = Array.isArray(data) ? data : data?.rooms || [];
-        if (roomsList.length > 0) {
-          setAvailableSuites(roomsList);
-          // Pre-select first available suite with 1 room
-          const firstAvail = roomsList.find(isRoomAvailable);
-          if (firstAvail) {
-            setSelectedSuitesMap({
-              [firstAvail._id]: {
-                suite: firstAvail,
-                roomsCount: 1,
-              },
-            });
-          }
-        }
-      })
-      .catch(() => {
-        // Fallback to default suites
-        const firstAvail = defaultSuites.find(isRoomAvailable);
+        const finalRooms = roomsList.length > 0 ? roomsList : DEFAULT_MUNNAR_SUITES;
+        setAvailableSuites(finalRooms);
+        // Pre-select first available suite with 1 room
+        const firstAvail = finalRooms.find(isRoomAvailable);
         if (firstAvail) {
           setSelectedSuitesMap({
             [firstAvail._id]: {
@@ -239,6 +380,19 @@ function Booking() {
             },
           });
         }
+      })
+      .catch((err) => {
+        console.warn("Could not load suites from database, using Munnar room types:", err.message);
+        setAvailableSuites(DEFAULT_MUNNAR_SUITES);
+        setSelectedSuitesMap({
+          [DEFAULT_MUNNAR_SUITES[0]._id]: {
+            suite: DEFAULT_MUNNAR_SUITES[0],
+            roomsCount: 1,
+          },
+        });
+      })
+      .finally(() => {
+        setLoadingSuites(false);
       });
   }, []);
 
@@ -412,10 +566,13 @@ function Booking() {
   const totalAvailableSuites = availableSuites.filter(isRoomAvailable).length;
   const totalBookedSuites = availableSuites.length - totalAvailableSuites;
 
-  // Filtered suites by active tab
+  // Filtered suites by active tab & room types
   const displayedSuites = availableSuites.filter((suite) => {
     if (suiteFilter === "available") return isRoomAvailable(suite);
     if (suiteFilter === "booked") return !isRoomAvailable(suite);
+    if (suiteFilter === "family") return (suite.category + " " + suite.name).toLowerCase().includes("family");
+    if (suiteFilter === "garden") return (suite.category + " " + suite.name).toLowerCase().includes("garden");
+    if (suiteFilter === "presidential") return (suite.category + " " + suite.name).toLowerCase().includes("presidential");
     return true;
   });
 
@@ -459,7 +616,27 @@ function Booking() {
       return;
     }
 
-    goToStep(2);
+    const bookingState = {
+      checkIn,
+      checkOut,
+      nights,
+      selectedSuitesList,
+      roomGuests,
+      guestName: guestName.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phone.trim(),
+      totalPrice,
+      totalSelectedRooms,
+      totalAdults,
+      totalChildren,
+      totalGuests,
+    };
+
+    try {
+      sessionStorage.setItem("viceroy_booking_draft", JSON.stringify(bookingState));
+    } catch {}
+
+    navigate("/payment", { state: { bookingState } });
   };
 
   // Handle Final Booking Submission on Page 2
@@ -500,7 +677,7 @@ function Booking() {
       const suitesPayload = selectedSuitesList.map(({ suite, roomsCount: sRooms }) => {
         const sPrice = suite.pricePerNight || suite.price || 15000;
         return {
-          roomId: suite._id?.startsWith("default") ? undefined : suite._id,
+          roomId: suite._id,
           roomName: suite.name,
           roomCategory: suite.category || "Ocean View Suite",
           roomNumber: suite.roomNumber || "101",
@@ -515,7 +692,7 @@ function Booking() {
       const primaryPrice = primary.pricePerNight || primary.price || 15000;
 
       const bookingData = {
-        roomId: primary._id?.startsWith("default") ? undefined : primary._id,
+        roomId: primary._id,
         roomName: selectedSuitesList.map((s) => s.suite.name).join(" & "),
         roomCategory: [...new Set(selectedSuitesList.map((s) => s.suite.category))].join(" · "),
         roomNumber: selectedSuitesList.map((s) => s.suite.roomNumber).join(", "),
@@ -750,55 +927,40 @@ function Booking() {
       <main className="booking-page">
         {/* Header Title */}
         <header className="booking-heading">
-          <p>VICEROY RESORT · RESERVATIONS</p>
-          <h1>
-            {currentStep === 1
-              ? "Curate Your Sanctuary Itinerary"
-              : "Review Stay & Secure Checkout"}
-          </h1>
+          <p>VICEROY RESORT MUNNAR · RESERVATIONS</p>
+          <h1>Curate Your Highland Sanctuary Itinerary</h1>
           <p>
-            {currentStep === 1
-              ? "Select your dates, book different suites at the same time, choose the number of rooms for each suite, configure guest occupancy, and enter your details."
-              : "Verify your stay itinerary across your selected suites, review the total amount, and choose your preferred payment method."}
+            Select your stay dates, explore our luxury Munnar suites, configure guest occupancy, and proceed to payment on the next page.
           </p>
         </header>
 
+       
+
+
         {/* Step Indicator Navigation */}
         <nav className="booking-stepper" aria-label="Booking steps">
-          <div
-            className={`stepper-step ${currentStep === 1 ? "active" : "completed"}`}
-            onClick={() => goToStep(1)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && goToStep(1)}
-          >
-            <div className="step-number">{currentStep === 2 ? "✓" : "1"}</div>
+          <div className="stepper-step active">
+            <div className="step-number">1</div>
             <div className="step-text">
-              <span className="step-title">1. Suites & Guest Details</span>
-              <span className="step-subtitle">
-                {currentStep === 1 ? "In Progress" : "Completed · Click to edit"}
-              </span>
+              <span className="step-title">1. Suites & Dates</span>
+              <span className="step-subtitle">Active Step · Select Residences</span>
             </div>
           </div>
 
           <div className="stepper-divider" />
 
           <div
-            className={`stepper-step ${currentStep === 2 ? "active" : "upcoming"}`}
-            onClick={() => {
-              if (guestName.trim() && email.trim() && selectedSuitesList.length > 0) {
-                goToStep(2);
-              }
-            }}
+            className="stepper-step upcoming"
+            onClick={handleProceedToPayment}
             role="button"
-            tabIndex={guestName.trim() && email.trim() ? 0 : -1}
+            tabIndex={0}
+            style={{ cursor: "pointer" }}
+            title="Click to proceed to Payment"
           >
             <div className="step-number">2</div>
             <div className="step-text">
               <span className="step-title">2. Payment & Confirmation</span>
-              <span className="step-subtitle">
-                {currentStep === 2 ? "Active Step" : "Payment & Stay Summary"}
-              </span>
+              <span className="step-subtitle">Next Page Checkout →</span>
             </div>
           </div>
         </nav>
@@ -821,11 +983,8 @@ function Booking() {
           </div>
         )}
 
-        {/* ======================================================== */}
-        {/* PAGE 1: DATES, SUITES (MULTI-SELECT), OCCUPANCY, GUESTS  */}
-        {/* ======================================================== */}
-        {currentStep === 1 && (
-          <form onSubmit={handleProceedToPayment}>
+        {/* Booking Itinerary Form */}
+        <form onSubmit={handleProceedToPayment}>
             {/* STEP 01: DATES */}
             <section className="booking-section">
               <p className="step-label">STEP 01</p>
@@ -879,9 +1038,9 @@ function Booking() {
               <div className="suite-section-top-row">
                 <div>
                   <p className="step-label">STEP 02</p>
-                  <h2>Select Resort Suites & Number of Rooms</h2>
+                  <h2>Select Accommodation & Number of Rooms</h2>
                   <p style={{ margin: "4px 0 0", color: "#6e6b66", fontSize: "14px" }}>
-                    <strong>Multi-Suite Booking:</strong> You can select and book different suites at the same time. If some rooms in a suite are booked by another user, you can book any of the remaining available rooms!
+                    Explore our three signature room categories below. Click any card to filter by room type or click photos to preview high-resolution room interiors.
                   </p>
                 </div>
 
@@ -896,88 +1055,531 @@ function Booking() {
                 </div>
               </div>
 
+              {/* THREE SIGNATURE ROOM TYPES SHOWCASE WITH PHOTOS */}
+              <div style={{ marginTop: "24px", marginBottom: "20px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: "18px", color: "#142217", fontFamily: "Georgia, serif" }}>
+                      Three Signature Room Categories
+                    </h3>
+                    <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#666" }}>
+                      Click any card below to filter residences, or click photo thumbnails to preview high-resolution rooms.
+                    </p>
+                  </div>
+                  {suiteFilter !== "all" && (
+                    <button
+                      type="button"
+                      onClick={() => setSuiteFilter("all")}
+                      style={{
+                        fontSize: "12px",
+                        color: "#8c6f44",
+                        background: "#f4ede1",
+                        border: "1px solid #dcd3c4",
+                        borderRadius: "14px",
+                        padding: "4px 12px",
+                        cursor: "pointer",
+                        fontWeight: "600",
+                      }}
+                    >
+                      ✕ Show All ({availableSuites.length})
+                    </button>
+                  )}
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))",
+                    gap: "18px",
+                  }}
+                >
+                  {/* 1. Family Rooms */}
+                  <div
+                    onClick={() => setSuiteFilter(suiteFilter === "family" ? "all" : "family")}
+                    style={{
+                      background: "#ffffff",
+                      border: suiteFilter === "family" ? "2px solid #c49d68" : "1px solid #e0d8cb",
+                      borderRadius: "10px",
+                      overflow: "hidden",
+                      boxShadow: suiteFilter === "family" ? "0 8px 24px rgba(196,157,104,0.25)" : "0 4px 14px rgba(20,34,23,0.06)",
+                      transition: "all 0.25s ease",
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
+                    <div style={{ position: "relative", height: "165px", background: "#142217", overflow: "hidden" }}>
+                      <img
+                        src="/images/munnar-room-living.jpg"
+                        alt="Family Rooms"
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(20,34,23,0.85) 0%, rgba(20,34,23,0.1) 60%)" }} />
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: "10px",
+                          left: "10px",
+                          background: "rgba(20,34,23,0.8)",
+                          backdropFilter: "blur(4px)",
+                          color: "#f5eee2",
+                          fontSize: "10px",
+                          fontWeight: "700",
+                          letterSpacing: "1px",
+                          padding: "3px 8px",
+                          borderRadius: "4px",
+                          border: "1px solid rgba(255,255,255,0.2)",
+                        }}
+                      >
+                        UP TO 6 GUESTS · MULTI-BED
+                      </span>
+                      <span
+                        style={{
+                          position: "absolute",
+                          bottom: "10px",
+                          left: "12px",
+                          color: "#ffffff",
+                          fontFamily: "Georgia, serif",
+                          fontSize: "18px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        👨‍👩‍👧‍👦 Family Rooms
+                      </span>
+                    </div>
+
+                    <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", flex: 1, justifyContent: "space-between" }}>
+                      <div>
+                        <p style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: "700", color: "#142217" }}>
+                          Multiple beds and space for families
+                        </p>
+                        <p style={{ margin: 0, fontSize: "12px", color: "#666", lineHeight: "1.4" }}>
+                          Interconnected bedroom spaces, cozy stone fireplace, mountain balcony, and ample room to relax together.
+                        </p>
+                        <div style={{ marginTop: "8px", fontSize: "13px", fontWeight: "700", color: "#8c6f44" }}>
+                          From ₹16,000 / night
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px dashed #e6dfd2" }}>
+                        <span style={{ fontSize: "10px", fontWeight: "700", letterSpacing: "0.5px", color: "#8c6f44", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
+                          📸 Family Room Photos (Click to Zoom):
+                        </span>
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          {ROOM_CATEGORIES_METADATA.family.photos.map((p, idx) => (
+                            <div
+                              key={idx}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActivePhotoModal({
+                                  title: `Family Rooms · ${p.label}`,
+                                  image: p.img,
+                                  category: "Family Rooms",
+                                  desc: p.desc,
+                                  photoList: ROOM_CATEGORIES_METADATA.family.photos,
+                                  photoIndex: idx,
+                                });
+                              }}
+                              title={`Click to enlarge ${p.label}`}
+                              style={{
+                                position: "relative",
+                                flex: 1,
+                                height: "46px",
+                                borderRadius: "4px",
+                                overflow: "hidden",
+                                border: "1px solid #d4cbbd",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <img src={p.img} alt={p.label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "11px", fontWeight: "700", color: suiteFilter === "family" ? "#1f7a3f" : "#8c6f44" }}>
+                          {suiteFilter === "family" ? "✓ Filter Active" : "Click to view Family Rooms →"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. Garden Rooms */}
+                  <div
+                    onClick={() => setSuiteFilter(suiteFilter === "garden" ? "all" : "garden")}
+                    style={{
+                      background: "#ffffff",
+                      border: suiteFilter === "garden" ? "2px solid #c49d68" : "1px solid #e0d8cb",
+                      borderRadius: "10px",
+                      overflow: "hidden",
+                      boxShadow: suiteFilter === "garden" ? "0 8px 24px rgba(196,157,104,0.25)" : "0 4px 14px rgba(20,34,23,0.06)",
+                      transition: "all 0.25s ease",
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
+                    <div style={{ position: "relative", height: "165px", background: "#142217", overflow: "hidden" }}>
+                      <img
+                        src="/images/garden.png"
+                        alt="Garden Rooms"
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(20,34,23,0.85) 0%, rgba(20,34,23,0.1) 60%)" }} />
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: "10px",
+                          left: "10px",
+                          background: "rgba(20,34,23,0.8)",
+                          backdropFilter: "blur(4px)",
+                          color: "#f5eee2",
+                          fontSize: "10px",
+                          fontWeight: "700",
+                          letterSpacing: "1px",
+                          padding: "3px 8px",
+                          borderRadius: "4px",
+                          border: "1px solid rgba(255,255,255,0.2)",
+                        }}
+                      >
+                        NATURE VILLA · GREENERY
+                      </span>
+                      <span
+                        style={{
+                          position: "absolute",
+                          bottom: "10px",
+                          left: "12px",
+                          color: "#ffffff",
+                          fontFamily: "Georgia, serif",
+                          fontSize: "18px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        🌿 Garden Rooms
+                      </span>
+                    </div>
+
+                    <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", flex: 1, justifyContent: "space-between" }}>
+                      <div>
+                        <p style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: "700", color: "#142217" }}>
+                          Private villa surrounded by greenery
+                        </p>
+                        <p style={{ margin: 0, fontSize: "12px", color: "#666", lineHeight: "1.4" }}>
+                          Standalone secluded villa amidst botanical flora, mountain stream wooden footbridge, and peaceful nature walks.
+                        </p>
+                        <div style={{ marginTop: "8px", fontSize: "13px", fontWeight: "700", color: "#8c6f44" }}>
+                          From ₹14,000 / night
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px dashed #e6dfd2" }}>
+                        <span style={{ fontSize: "10px", fontWeight: "700", letterSpacing: "0.5px", color: "#8c6f44", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
+                          📸 Garden Room Photos (Click to Zoom):
+                        </span>
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          {ROOM_CATEGORIES_METADATA.garden.photos.map((p, idx) => (
+                            <div
+                              key={idx}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActivePhotoModal({
+                                  title: `Garden Rooms · ${p.label}`,
+                                  image: p.img,
+                                  category: "Garden Rooms",
+                                  desc: p.desc,
+                                  photoList: ROOM_CATEGORIES_METADATA.garden.photos,
+                                  photoIndex: idx,
+                                });
+                              }}
+                              title={`Click to enlarge ${p.label}`}
+                              style={{
+                                position: "relative",
+                                flex: 1,
+                                height: "46px",
+                                borderRadius: "4px",
+                                overflow: "hidden",
+                                border: "1px solid #d4cbbd",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <img src={p.img} alt={p.label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "11px", fontWeight: "700", color: suiteFilter === "garden" ? "#1f7a3f" : "#8c6f44" }}>
+                          {suiteFilter === "garden" ? "✓ Filter Active" : "Click to view Garden Rooms →"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. Presidential Rooms */}
+                  <div
+                    onClick={() => setSuiteFilter(suiteFilter === "presidential" ? "all" : "presidential")}
+                    style={{
+                      background: "#ffffff",
+                      border: suiteFilter === "presidential" ? "2px solid #c49d68" : "1px solid #e0d8cb",
+                      borderRadius: "10px",
+                      overflow: "hidden",
+                      boxShadow: suiteFilter === "presidential" ? "0 8px 24px rgba(196,157,104,0.25)" : "0 4px 14px rgba(20,34,23,0.06)",
+                      transition: "all 0.25s ease",
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
+                    <div style={{ position: "relative", height: "165px", background: "#142217", overflow: "hidden" }}>
+                      <img
+                        src="/images/munnar-room-bedroom.jpg"
+                        alt="Presidential Rooms"
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(20,34,23,0.85) 0%, rgba(20,34,23,0.1) 60%)" }} />
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: "10px",
+                          left: "10px",
+                          background: "rgba(20,34,23,0.8)",
+                          backdropFilter: "blur(4px)",
+                          color: "#f5eee2",
+                          fontSize: "10px",
+                          fontWeight: "700",
+                          letterSpacing: "1px",
+                          padding: "3px 8px",
+                          borderRadius: "4px",
+                          border: "1px solid rgba(255,255,255,0.2)",
+                        }}
+                      >
+                        PREMIUM MULTI-ROOM · BUTLER
+                      </span>
+                      <span
+                        style={{
+                          position: "absolute",
+                          bottom: "10px",
+                          left: "12px",
+                          color: "#ffffff",
+                          fontFamily: "Georgia, serif",
+                          fontSize: "18px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        👑 Presidential Rooms
+                      </span>
+                    </div>
+
+                    <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", flex: 1, justifyContent: "space-between" }}>
+                      <div>
+                        <p style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: "700", color: "#142217" }}>
+                          Premium accommodation with multiple rooms
+                        </p>
+                        <p style={{ margin: 0, fontSize: "12px", color: "#666", lineHeight: "1.4" }}>
+                          Multi-room residence with teak four-poster master suite, arched dining salon, artisan copper bath & butler care.
+                        </p>
+                        <div style={{ marginTop: "8px", fontSize: "13px", fontWeight: "700", color: "#8c6f44" }}>
+                          From ₹25,000 / night
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px dashed #e6dfd2" }}>
+                        <span style={{ fontSize: "10px", fontWeight: "700", letterSpacing: "0.5px", color: "#8c6f44", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
+                          📸 Presidential Photos (Click to Zoom):
+                        </span>
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          {ROOM_CATEGORIES_METADATA.presidential.photos.map((p, idx) => (
+                            <div
+                              key={idx}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActivePhotoModal({
+                                  title: `Presidential Rooms · ${p.label}`,
+                                  image: p.img,
+                                  category: "Presidential Rooms",
+                                  desc: p.desc,
+                                  photoList: ROOM_CATEGORIES_METADATA.presidential.photos,
+                                  photoIndex: idx,
+                                });
+                              }}
+                              title={`Click to enlarge ${p.label}`}
+                              style={{
+                                position: "relative",
+                                flex: 1,
+                                height: "46px",
+                                borderRadius: "4px",
+                                overflow: "hidden",
+                                border: "1px solid #d4cbbd",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <img src={p.img} alt={p.label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "11px", fontWeight: "700", color: suiteFilter === "presidential" ? "#1f7a3f" : "#8c6f44" }}>
+                          {suiteFilter === "presidential" ? "✓ Filter Active" : "Click to view Presidential Rooms →"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Filter Tabs */}
-              <div className="suite-filter-bar" style={{ marginTop: "18px" }}>
+              <div className="suite-filter-bar" style={{ marginTop: "14px" }}>
                 <button
                   type="button"
                   className={`suite-filter-btn ${suiteFilter === "all" ? "active" : ""}`}
                   onClick={() => setSuiteFilter("all")}
                 >
-                  All Suites ({availableSuites.length})
+                  All Rooms ({availableSuites.length})
+                </button>
+                <button
+                  type="button"
+                  className={`suite-filter-btn ${suiteFilter === "family" ? "active" : ""}`}
+                  onClick={() => setSuiteFilter("family")}
+                >
+                  👨‍👩‍👧‍👦 Family Rooms
+                </button>
+                <button
+                  type="button"
+                  className={`suite-filter-btn ${suiteFilter === "garden" ? "active" : ""}`}
+                  onClick={() => setSuiteFilter("garden")}
+                >
+                  🌿 Garden Rooms
+                </button>
+                <button
+                  type="button"
+                  className={`suite-filter-btn ${suiteFilter === "presidential" ? "active" : ""}`}
+                  onClick={() => setSuiteFilter("presidential")}
+                >
+                  👑 Presidential Rooms
                 </button>
                 <button
                   type="button"
                   className={`suite-filter-btn ${suiteFilter === "available" ? "active" : ""}`}
                   onClick={() => setSuiteFilter("available")}
                 >
-                  🟢 Available Only ({totalAvailableSuites})
-                </button>
-                <button
-                  type="button"
-                  className={`suite-filter-btn ${suiteFilter === "booked" ? "active" : ""}`}
-                  onClick={() => setSuiteFilter("booked")}
-                >
-                  🔴 Fully Booked ({totalBookedSuites})
+                  🟢 Open ({totalAvailableSuites})
                 </button>
               </div>
 
               {/* Suite Cards List with Checkbox Multi-selection & Rooms count per suite */}
-              <div className="suite-category-grid">
-                {displayedSuites.map((suite) => {
-                  const sPrice = suite.pricePerNight || suite.price || 15000;
-                  const {
-                    total,
-                    booked,
-                    free,
-                    isAvailable,
-                    isFullyBooked,
-                    availableRoomNumbers,
-                    bookedRoomNumbers,
-                  } = getSuiteInfo(suite);
+              {loadingSuites ? (
+                <div style={{ textAlign: "center", padding: "48px 24px", color: "#8a7c6a" }}>
+                  <div style={{ fontSize: "28px", marginBottom: "12px", animation: "spin 2s linear infinite" }}>⏳</div>
+                  <p style={{ fontFamily: "Georgia, serif", fontSize: "16px", color: "#142217" }}>
+                    Loading luxury residences from database...
+                  </p>
+                </div>
+              ) : displayedSuites.length === 0 ? (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "40px 24px",
+                    background: "#fdfbf7",
+                    border: "1px dashed #dcd3c5",
+                    borderRadius: "8px",
+                    color: "#8a7c6a",
+                  }}
+                >
+                  <p style={{ fontFamily: "Georgia, serif", fontSize: "17px", color: "#142217", marginBottom: "8px" }}>
+                    No suites available matching your criteria.
+                  </p>
+                  <p style={{ fontSize: "13px" }}>
+                    Please adjust your dates or filter options to explore other dates.
+                  </p>
+                </div>
+              ) : (
+                <div className="suite-category-grid">
+                  {displayedSuites.map((suite) => {
+                    const sPrice = suite.pricePerNight || suite.price || 15000;
+                    const {
+                      total,
+                      booked,
+                      free,
+                      isAvailable,
+                      isFullyBooked,
+                      availableRoomNumbers,
+                      bookedRoomNumbers,
+                    } = getSuiteInfo(suite);
 
-                  const isSelected = !!selectedSuitesMap[suite._id];
-                  const currentSelectedRooms = selectedSuitesMap[suite._id]?.roomsCount || 1;
+                    const isSelected = !!selectedSuitesMap[suite._id];
+                    const meta = getCategoryMeta(suite.category, suite.name);
+                    const currentSelectedRooms = selectedSuitesMap[suite._id]?.roomsCount || 1;
+                    const suiteImage = resolveImgUrl(suite.image);
 
-                  const suiteImage =
-                    suite.image ||
-                    (suite.roomNumber === "102"
-                      ? "/images/viceroy-bath.jpg"
-                      : suite.roomNumber === "103"
-                      ? "/images/viceroy-villa.jpg"
-                      : "/images/viceroy-bedroom.jpg");
-
-                  return (
-                    <div
-                      key={suite._id}
-                      className={`suite-card-option ${
-                        isSelected ? "selected" : ""
-                      } ${!isAvailable ? "is-booked-card" : "is-available-card"}`}
-                      style={{
-                        cursor: isAvailable ? "pointer" : "not-allowed",
-                        border: isSelected ? "2px solid #c49d68" : undefined,
-                        background: isSelected ? "#fffdf8" : undefined,
-                      }}
-                      onClick={() => {
-                        if (isAvailable) {
-                          handleToggleSuite(suite);
-                        }
-                      }}
-                    >
-                      {/* Suite Image Thumbnail */}
-                      <div className="suite-image-wrapper">
-                        <img
-                          src={suiteImage}
-                          alt={suite.name}
-                          className="suite-thumbnail-img"
-                          loading="lazy"
-                          onError={(e) => {
-                            e.currentTarget.onerror = null;
-                            e.currentTarget.src = "/images/home1.png";
+                    return (
+                      <div
+                        key={suite._id}
+                        className={`suite-card-option ${
+                          isSelected ? "selected" : ""
+                        } ${!isAvailable ? "is-booked-card" : "is-available-card"}`}
+                        style={{
+                          cursor: isAvailable ? "pointer" : "not-allowed",
+                          border: isSelected ? "2px solid #c49d68" : undefined,
+                          background: isSelected ? "#fffdf8" : undefined,
+                        }}
+                        onClick={() => {
+                          if (isAvailable) {
+                            handleToggleSuite(suite);
+                          }
+                        }}
+                      >
+                        {/* Suite Image Thumbnail */}
+                        <div
+                          className="suite-image-wrapper"
+                          style={{ cursor: "zoom-in" }}
+                          title="Click to preview room photo"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActivePhotoModal({
+                              title: `${suite.name} · Flagship View`,
+                              image: suiteImage,
+                              category: meta.name,
+                              desc: suite.description || meta.description,
+                              photoList: meta.photos,
+                              photoIndex: 0,
+                            });
                           }}
-                        />
+                        >
+                          <img
+                            src={suiteImage}
+                            alt={suite.name}
+                            className="suite-thumbnail-img"
+                            loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = "/images/home1.png";
+                            }}
+                          />
                         <span className="suite-category-badge">
                           {suite.category || "Luxury Suite"}
                         </span>
+
+                        <span
+                            style={{
+                              position: "absolute",
+                              bottom: "8px",
+                              right: "8px",
+                              background: "rgba(20, 34, 23, 0.8)",
+                              color: "#ffffff",
+                              fontSize: "10px",
+                              padding: "2px 7px",
+                              borderRadius: "12px",
+                              fontWeight: "bold",
+                              backdropFilter: "blur(2px)",
+                              zIndex: 2,
+                            }}
+                          >
+                            🔍 Zoom Photo
+                          </span>
 
                         {!isAvailable && (
                           <div className="image-booked-ribbon">
@@ -1012,6 +1614,19 @@ function Booking() {
                                 </span>
                               )}
                             </div>
+
+                            {/* Exact Signature Room Type Tagline */}
+                            <p
+                              style={{
+                                margin: "4px 0 6px",
+                                fontSize: "13px",
+                                fontWeight: "700",
+                                color: "#8c6f44",
+                                fontStyle: "italic",
+                              }}
+                            >
+                              "{meta.tagline}"
+                            </p>
 
                             {/* Suite Specs & Room Numbers */}
                             <div
@@ -1123,8 +1738,79 @@ function Booking() {
 
                         <p className="suite-card-desc">
                           {suite.description ||
-                            "Oceanfront luxury sanctuary curated with natural stone, private balcony, and personalized care."}
+                            "Highland sanctuary in Munnar curated with handcrafted teak, stone fireplace, private balcony, and personalized care."}
                         </p>
+
+                        {/* Interactive Munnar Suite Gallery Preview */}
+                        <div
+                          className="suite-gallery-preview-row"
+                          style={{
+                            marginTop: "14px",
+                            paddingTop: "12px",
+                            borderTop: "1px dashed #e5decf",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: "700",
+                              letterSpacing: "1px",
+                              color: "#8c6f44",
+                              textTransform: "uppercase",
+                              display: "block",
+                              marginBottom: "8px",
+                            }}
+                          >
+                            📸 {meta.name} Interior & Scenic Gallery (Click to Enlarge):
+                          </span>
+                          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                            {meta.photos.map((photo, pIdx) => (
+                              <button
+                                key={pIdx}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActivePhotoModal({
+                                    title: `${suite.name} · ${photo.label}`,
+                                    image: photo.img,
+                                    category: meta.name,
+                                    desc: photo.desc,
+                                    photoList: meta.photos,
+                                    photoIndex: pIdx,
+                                  });
+                                }}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  padding: "5px 12px",
+                                  background: "#ffffff",
+                                  border: "1px solid #dcd3c4",
+                                  borderRadius: "18px",
+                                  fontSize: "11px",
+                                  fontFamily: "Arial, sans-serif",
+                                  color: "#142217",
+                                  cursor: "pointer",
+                                  transition: "all 0.2s ease",
+                                  boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+                                }}
+                                title={`Click to enlarge ${photo.label}`}
+                              >
+                                <img
+                                  src={photo.img}
+                                  alt={photo.label}
+                                  style={{
+                                    width: "22px",
+                                    height: "22px",
+                                    borderRadius: "50%",
+                                    objectFit: "cover",
+                                  }}
+                                />
+                                <span style={{ fontWeight: "600" }}>{photo.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
 
                         {/* If this suite is selected: Show Room Count Selector for this Suite */}
                         {isSelected && isAvailable && (
@@ -1248,6 +1934,7 @@ function Booking() {
                   );
                 })}
               </div>
+            )}
 
               {/* Selected Suites Multi-Cart Banner */}
               {selectedSuitesList.length > 0 && (
@@ -1486,425 +2173,290 @@ function Booking() {
               >
                 {selectedSuitesList.length === 0
                   ? "Please Select an Available Suite"
-                  : "Continue to Payment & Itinerary Review →"}
+                  : `Proceed to Payment (₹${totalPrice.toLocaleString("en-IN")}) →`}
               </button>
             </div>
           </form>
-        )}
 
-        {/* ======================================================== */}
-        {/* PAGE 2: PAYMENT METHOD & STAY ITINERARY / TOTAL AMOUNT   */}
-        {/* ======================================================== */}
-        {currentStep === 2 && (
-          <form onSubmit={handleBooking}>
-            {/* Top Back Navigation Bar */}
-            <div className="booking-page2-nav">
-              <button
-                type="button"
-                className="btn-back-link"
-                onClick={() => goToStep(1)}
-              >
-                ← Back to Suites & Guest Details
-              </button>
-              <span className="booking-page2-badge">Step 2 of 2: Payment & Confirmation</span>
-            </div>
-
-            {/* PAYMENT METHOD SECTION */}
-            <section className="booking-section">
-              <p className="step-label">PAYMENT METHOD</p>
-              <h2>Select Payment Method</h2>
-
-              <div className="room-options" style={{ marginBottom: "16px" }}>
-                {/* 1. RAZORPAY GATEWAY (RECOMMENDED) */}
-                <label
-                  className="room-option"
-                  style={{
-                    border: paymentMethod === "Razorpay" ? "2px solid #142217" : "1px solid #d4c8b8",
-                    background: paymentMethod === "Razorpay" ? "#fbf8f3" : "#ffffff",
-                    cursor: "pointer",
-                    padding: "16px 20px",
-                    borderRadius: "6px",
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="Razorpay"
-                    checked={paymentMethod === "Razorpay"}
-                    onChange={() => setPaymentMethod("Razorpay")}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "6px" }}>
-                      <strong style={{ fontSize: "15px", color: "#142217" }}>
-                        Razorpay Gateway (Cards, UPI, NetBanking, Wallets)
-                      </strong>
-                      <span
-                        style={{
-                          fontSize: "10px",
-                          background: "#142217",
-                          color: "#c49d68",
-                          padding: "3px 10px",
-                          borderRadius: "12px",
-                          fontWeight: "bold",
-                          letterSpacing: "1px",
-                        }}
-                      >
-                        ★ RECOMMENDED · INSTANT VERIFICATION
-                      </span>
-                    </div>
-                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#666" }}>
-                      Instant secure checkout with Google Pay, PhonePe, Paytm, all Credit/Debit cards (Visa, MasterCard, RuPay), 50+ NetBanking banks & Wallets.
-                    </p>
-                  </div>
-                </label>
-
-                {/* 2. VICEROY GUEST WALLET */}
-                <label
-                  className="room-option"
-                  style={{
-                    border: paymentMethod === "Wallet" ? "2px solid #142217" : "1px solid #d4c8b8",
-                    background: paymentMethod === "Wallet" ? "#fbf8f3" : "#ffffff",
-                    cursor: "pointer",
-                    padding: "16px 20px",
-                    borderRadius: "6px",
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="Wallet"
-                    checked={paymentMethod === "Wallet"}
-                    onChange={() => setPaymentMethod("Wallet")}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "6px" }}>
-                      <strong style={{ fontSize: "15px", color: "#142217" }}>
-                        💳 Viceroy Guest Wallet (Credits & Refunds)
-                      </strong>
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          background: walletBalance >= totalPrice ? "#142217" : "#fff0f0",
-                          color: walletBalance >= totalPrice ? "#c49d68" : "#c53030",
-                          border: walletBalance >= totalPrice ? "none" : "1px solid #feb2b2",
-                          padding: "3px 10px",
-                          borderRadius: "12px",
-                          fontWeight: "bold",
-                          letterSpacing: "0.5px",
-                        }}
-                      >
-                        {walletBalance >= totalPrice
-                          ? `✓ AVAILABLE: ₹${walletBalance.toLocaleString("en-IN")}`
-                          : `BALANCE: ₹${walletBalance.toLocaleString("en-IN")}`}
-                      </span>
-                    </div>
-                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#666" }}>
-                      {walletBalance >= totalPrice
-                        ? "Instant 1-click booking paid using your stored wallet credits from previous cancellations."
-                        : `Your wallet currently has ₹${walletBalance.toLocaleString("en-IN")}. Total due is ₹${totalPrice.toLocaleString("en-IN")}.`}
-                    </p>
-                  </div>
-                </label>
-
-                {/* 3. PAY AT RESORT */}
-                <label className="room-option">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="Pay at Resort"
-                    checked={paymentMethod === "Pay at Resort"}
-                    onChange={() => setPaymentMethod("Pay at Resort")}
-                  />
-                  <div>
-                    <strong>Pay Upon Arrival at Resort</strong>
-                    <p>Guaranteed reservation with complimentary concierge check-in valet</p>
-                  </div>
-                </label>
-              </div>
-
-              {/* Razorpay Information Box */}
-              {paymentMethod === "Razorpay" && (
-                <div
-                  style={{
-                    background: "#fbf9f5",
-                    border: "1px solid #ebd8c0",
-                    padding: "16px 20px",
-                    borderRadius: "6px",
-                    marginTop: "14px",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: "13px", fontWeight: "bold", color: "#142217" }}>
-                      🔒 256-Bit SSL Encrypted Razorpay Checkout
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        color: "#1f7a3f",
-                        background: "#dcfce7",
-                        padding: "2px 8px",
-                        borderRadius: "10px",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      RBI & PCI-DSS Level 1 Compliant
-                    </span>
-                  </div>
-                  <p style={{ margin: "8px 0 0", fontSize: "12px", color: "#666", lineHeight: "1.5" }}>
-                    Clicking <strong>"Proceed to Razorpay Checkout"</strong> below will open the official Razorpay Checkout window to securely authenticate and process your transaction with an instant confirmed booking receipt.
-                  </p>
-                </div>
-              )}
-
-              {/* Viceroy Guest Wallet Information Box */}
-              {paymentMethod === "Wallet" && (
-                <div
-                  style={{
-                    background: walletBalance >= totalPrice ? "#f4f9f5" : "#fff8f8",
-                    border: `1px solid ${walletBalance >= totalPrice ? "#badcc5" : "#f8b4b4"}`,
-                    padding: "18px 20px",
-                    borderRadius: "6px",
-                    marginTop: "14px",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
-                    <div>
-                      <span style={{ fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase", color: "#c49d68", fontWeight: "bold" }}>
-                        Viceroy Guest Wallet Account
-                      </span>
-                      <div style={{ fontSize: "20px", fontWeight: "bold", color: "#142217", marginTop: "2px" }}>
-                        Available Balance: ₹{walletBalance.toLocaleString("en-IN")}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                      <span style={{ fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase", color: "#666", display: "block" }}>
-                        Reservation Total
-                      </span>
-                      <div style={{ fontSize: "18px", fontWeight: "bold", color: "#991b1b" }}>
-                        - ₹{totalPrice.toLocaleString("en-IN")}
-                      </div>
-                    </div>
-                  </div>
-
-                  {walletBalance >= totalPrice ? (
-                    <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #dceada" }}>
-                      <p style={{ margin: "0", fontSize: "13px", color: "#1e5e31", lineHeight: "1.5" }}>
-                        ✓ You have sufficient credits. <strong>₹{totalPrice.toLocaleString("en-IN")}</strong> will be deducted from your wallet balance upon confirming this reservation.
-                        Remaining balance after booking: <strong>₹{(walletBalance - totalPrice).toLocaleString("en-IN")}</strong>.
-                      </p>
-                    </div>
-                  ) : (
-                    <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #fbd5d5" }}>
-                      <p style={{ margin: "0", fontSize: "13px", color: "#991b1b", lineHeight: "1.5" }}>
-                        ⚠️ Your current wallet balance of <strong>₹{walletBalance.toLocaleString("en-IN")}</strong> is insufficient for this reservation (₹{totalPrice.toLocaleString("en-IN")}).
-                        Please select <strong>Razorpay Gateway</strong> or <strong>Pay Upon Arrival at Resort</strong> to complete your reservation.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {paymentMethod === "Pay at Resort" && (
-                <div
-                  style={{
-                    background: "#f0f7f2",
-                    border: "1px solid #c2e2cc",
-                    padding: "16px 20px",
-                    borderRadius: "6px",
-                    marginTop: "12px",
-                    color: "#1e5e31",
-                    fontSize: "13px",
-                  }}
-                >
-                  ✓ Your residence is 100% reserved. Pay with cash, card, or UPI during concierge check-in at the resort reception.
-                </div>
-              )}
-            </section>
-
-            {/* STAY ITINERARY & TOTAL AMOUNT SECTION */}
-            <section className="booking-section booking-summary">
-              <p className="step-label">RESERVATION REVIEW</p>
-              <h2>Stay Itinerary & Total Amount</h2>
-
-              {/* Selected Suites Cards List */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "20px" }}>
-                {selectedSuitesList.map(({ suite, roomsCount: sRooms }) => {
-                  const sPrice = suite.pricePerNight || suite.price || 15000;
-                  const suiteTotal = nights * sPrice * sRooms;
-
-                  return (
-                    <div key={suite._id} className="itinerary-suite-preview">
-                      <img
-                        src={suite.image || "/images/viceroy-bedroom.jpg"}
-                        alt={suite.name}
-                        className="preview-suite-thumb"
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = "/images/home1.png";
-                        }}
-                      />
-                      <div className="preview-suite-info">
-                        <span className="preview-suite-badge">
-                          {suite.category || "LUXURY SUITE"} · SUITE {suite.roomNumber || "101"} · 📍 {suite.location || "Coastal Sanctuary"}
-                        </span>
-                        <h3 className="preview-suite-title">{suite.name}</h3>
-                        <p className="preview-suite-rate">
-                          {sRooms} Room{sRooms > 1 ? "s" : ""} booked in this suite × ₹{sPrice.toLocaleString("en-IN")} / room / night
-                        </p>
-                        <p style={{ margin: "4px 0 0", color: "#c49d68", fontWeight: "bold", fontSize: "14px" }}>
-                          Suite Subtotal: ₹{suiteTotal.toLocaleString("en-IN")} ({nights} nights)
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Itinerary Specs Grid */}
+        {/* Fullscreen Photo Lightbox Modal with Multi-Photo Navigation */}
+        {activePhotoModal && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              background: "rgba(10, 18, 12, 0.88)",
+              backdropFilter: "blur(8px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "16px",
+            }}
+            onClick={() => setActivePhotoModal(null)}
+          >
+            <div
+              style={{
+                position: "relative",
+                maxWidth: "840px",
+                width: "100%",
+                background: "#ffffff",
+                borderRadius: "12px",
+                overflow: "hidden",
+                boxShadow: "0 25px 70px rgba(0,0,0,0.6)",
+                display: "flex",
+                flexDirection: "column",
+                maxHeight: "92vh",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                  gap: "14px",
-                  margin: "20px 0",
-                  padding: "16px",
-                  background: "rgba(255, 255, 255, 0.05)",
-                  borderRadius: "6px",
-                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "14px 20px",
+                  background: "#142217",
+                  color: "#ffffff",
                 }}
               >
                 <div>
-                  <small style={{ color: "#c49d68", display: "block", fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase" }}>CHECK-IN</small>
-                  <strong style={{ fontSize: "15px" }}>{checkIn}</strong>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        letterSpacing: "1px",
+                        background: "#c49d68",
+                        color: "#142217",
+                        padding: "2px 8px",
+                        borderRadius: "10px",
+                        fontWeight: "700",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {activePhotoModal.category || "Viceroy Munnar"}
+                    </span>
+                    <h4 style={{ margin: 0, fontSize: "16px", fontFamily: "Georgia, serif" }}>
+                      {activePhotoModal.title}
+                    </h4>
+                  </div>
+                  <span style={{ fontSize: "11px", color: "#c49d68", marginTop: "2px", display: "block" }}>
+                    Viceroy Luxury Resort · Munnar Hills, Kerala (5,200 ft)
+                  </span>
                 </div>
-
-                <div>
-                  <small style={{ color: "#c49d68", display: "block", fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase" }}>CHECK-OUT</small>
-                  <strong style={{ fontSize: "15px" }}>{checkOut}</strong>
-                </div>
-
-                <div>
-                  <small style={{ color: "#c49d68", display: "block", fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase" }}>DURATION</small>
-                  <strong style={{ fontSize: "15px" }}>{nights} Night{nights > 1 ? "s" : ""}</strong>
-                </div>
-
-                <div>
-                  <small style={{ color: "#c49d68", display: "block", fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase" }}>SUITES & ROOMS</small>
-                  <strong style={{ fontSize: "15px" }}>
-                    {selectedSuitesList.length} Suite{selectedSuitesList.length > 1 ? "s" : ""} · {totalSelectedRooms} Room{totalSelectedRooms > 1 ? "s" : ""}
-                  </strong>
-                </div>
-
-                <div>
-                  <small style={{ color: "#c49d68", display: "block", fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase" }}>TOTAL OCCUPANCY</small>
-                  <strong style={{ fontSize: "15px" }}>
-                    {totalGuests} Guests ({totalAdults} Adults{totalChildren > 0 ? `, ${totalChildren} Children` : ""})
-                  </strong>
-                </div>
-
-                <div>
-                  <small style={{ color: "#c49d68", display: "block", fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase" }}>PRIMARY GUEST</small>
-                  <strong style={{ fontSize: "15px" }}>{guestName}</strong>
-                </div>
-
-                <div>
-                  <small style={{ color: "#c49d68", display: "block", fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase" }}>CONFIRMATION EMAIL</small>
-                  <strong style={{ fontSize: "15px" }}>{email}</strong>
-                </div>
-
-                <div>
-                  <small style={{ color: "#c49d68", display: "block", fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase" }}>PAYMENT METHOD</small>
-                  <strong style={{ fontSize: "15px" }}>{paymentMethod}</strong>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setActivePhotoModal(null)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#ffffff",
+                    fontSize: "26px",
+                    cursor: "pointer",
+                    lineHeight: 1,
+                    padding: "4px 8px",
+                  }}
+                  aria-label="Close photo preview"
+                >
+                  ×
+                </button>
               </div>
 
-              {/* Calculated Total Price Card */}
+              {/* Modal Image View with Prev / Next arrows */}
               <div
                 style={{
-                  background: "#142217",
-                  border: "1px solid #c49d68",
-                  color: "#c49d68",
-                  padding: "20px 24px",
-                  borderRadius: "6px",
-                  margin: "18px 0",
+                  position: "relative",
+                  background: "#000000",
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: "340px",
+                  maxHeight: "56vh",
+                  overflow: "hidden",
+                }}
+              >
+                <img
+                  src={activePhotoModal.image}
+                  alt={activePhotoModal.title}
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: "56vh",
+                    width: "auto",
+                    height: "auto",
+                    objectFit: "contain",
+                    display: "block",
+                  }}
+                />
+
+                {activePhotoModal.photoList && activePhotoModal.photoList.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const list = activePhotoModal.photoList;
+                        const currIdx = activePhotoModal.photoIndex ?? 0;
+                        const prevIdx = (currIdx - 1 + list.length) % list.length;
+                        const target = list[prevIdx];
+                        setActivePhotoModal({
+                          ...activePhotoModal,
+                          title: target.label,
+                          image: target.img,
+                          desc: target.desc,
+                          photoIndex: prevIdx,
+                        });
+                      }}
+                      style={{
+                        position: "absolute",
+                        left: "14px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "rgba(20, 34, 23, 0.75)",
+                        color: "#ffffff",
+                        border: "1px solid rgba(196,157,104,0.5)",
+                        width: "38px",
+                        height: "38px",
+                        borderRadius: "50%",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "20px",
+                        zIndex: 10,
+                      }}
+                      aria-label="Previous photo"
+                    >
+                      ‹
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const list = activePhotoModal.photoList;
+                        const currIdx = activePhotoModal.photoIndex ?? 0;
+                        const nextIdx = (currIdx + 1) % list.length;
+                        const target = list[nextIdx];
+                        setActivePhotoModal({
+                          ...activePhotoModal,
+                          title: target.label,
+                          image: target.img,
+                          desc: target.desc,
+                          photoIndex: nextIdx,
+                        });
+                      }}
+                      style={{
+                        position: "absolute",
+                        right: "14px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "rgba(20, 34, 23, 0.75)",
+                        color: "#ffffff",
+                        border: "1px solid rgba(196,157,104,0.5)",
+                        width: "38px",
+                        height: "38px",
+                        borderRadius: "50%",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "20px",
+                        zIndex: 10,
+                      }}
+                      aria-label="Next photo"
+                    >
+                      ›
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Photo Thumbnails Strip (if multiple photos) */}
+              {activePhotoModal.photoList && activePhotoModal.photoList.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "8px",
+                    padding: "10px 16px",
+                    background: "#19241b",
+                    overflowX: "auto",
+                    justifyContent: "center",
+                  }}
+                >
+                  {activePhotoModal.photoList.map((p, idx) => {
+                    const isSelectedThumb = activePhotoModal.image === p.img;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setActivePhotoModal({
+                            ...activePhotoModal,
+                            title: p.label,
+                            image: p.img,
+                            desc: p.desc,
+                            photoIndex: idx,
+                          });
+                        }}
+                        style={{
+                          border: isSelectedThumb ? "2px solid #c49d68" : "1px solid rgba(255,255,255,0.2)",
+                          borderRadius: "4px",
+                          overflow: "hidden",
+                          cursor: "pointer",
+                          padding: 0,
+                          background: "#000",
+                          opacity: isSelectedThumb ? 1 : 0.65,
+                          transition: "all 0.2s ease",
+                        }}
+                        title={p.label}
+                      >
+                        <img
+                          src={p.img}
+                          alt={p.label}
+                          style={{ width: "54px", height: "38px", objectFit: "cover", display: "block" }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Modal Footer Description */}
+              <div
+                style={{
+                  padding: "12px 20px",
+                  background: "#fbf9f4",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  flexWrap: "wrap",
                   gap: "12px",
+                  flexWrap: "wrap",
                 }}
               >
-                <div>
-                  <span
-                    style={{
-                      fontSize: "12px",
-                      letterSpacing: "1px",
-                      textTransform: "uppercase",
-                      color: "#e0d7c7",
-                    }}
-                  >
-                    Calculated Total Stay Amount
-                  </span>
-                  <h3
-                    style={{
-                      margin: "4px 0 0",
-                      fontSize: "30px",
-                      color: "#ffffff",
-                      fontFamily: "'Playfair Display', Georgia, serif",
-                    }}
-                  >
-                    ₹{totalPrice.toLocaleString("en-IN")}
-                  </h3>
-                </div>
-                <div
-                  style={{
-                    textAlign: "right",
-                    fontSize: "13px",
-                    color: "#c49d68",
-                  }}
-                >
-                  <span>
-                    ({nights} Night{nights > 1 ? "s" : ""} × {totalSelectedRooms} Room{totalSelectedRooms > 1 ? "s" : ""} across {selectedSuitesList.length} Suite{selectedSuitesList.length > 1 ? "s" : ""})
-                  </span>
-                </div>
-              </div>
-
-              <p style={{ fontSize: "13px", color: "#ccc", margin: "12px 0 20px" }}>
-                🌿 Included with your stay: Daily artisan breakfast, high-speed Wi-Fi, private concierge care, valet parking, and free cancellation up to 48 hours before check-in.
-              </p>
-
-              {/* Action Buttons */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                <button
-                  type="submit"
-                  className="booking-submit"
-                  disabled={submitting || (paymentMethod === "Wallet" && walletBalance < totalPrice)}
-                >
-                  {submitting
-                    ? paymentMethod === "Razorpay"
-                      ? "Connecting to Razorpay..."
-                      : paymentMethod === "Wallet"
-                      ? "Deducting Wallet Balance & Confirming..."
-                      : "Processing Reservation & Email Voucher..."
-                    : paymentMethod === "Wallet"
-                    ? walletBalance >= totalPrice
-                      ? `Confirm & Pay with Wallet (₹${totalPrice.toLocaleString("en-IN")})`
-                      : `Insufficient Wallet Balance (₹${walletBalance.toLocaleString("en-IN")})`
-                    : paymentMethod === "Razorpay"
-                    ? `Proceed to Razorpay Checkout (₹${totalPrice.toLocaleString("en-IN")})`
-                    : `Reserve Now & Pay at Resort (₹${totalPrice.toLocaleString("en-IN")})`}
-                </button>
-
+                <span style={{ fontSize: "12px", color: "#555", fontFamily: "Arial, sans-serif", flex: 1 }}>
+                  {activePhotoModal.desc ||
+                    "Highland suite crafted with natural teak wood, stone fireplace, and panoramic mist views in Munnar."}
+                </span>
                 <button
                   type="button"
-                  className="booking-secondary-back"
-                  onClick={() => goToStep(1)}
+                  onClick={() => setActivePhotoModal(null)}
+                  style={{
+                    padding: "6px 16px",
+                    background: "#142217",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "4px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                  }}
                 >
-                  ← Modify Suites, Rooms & Dates
+                  Close Preview
                 </button>
               </div>
-            </section>
-          </form>
+            </div>
+          </div>
         )}
       </main>
     </>

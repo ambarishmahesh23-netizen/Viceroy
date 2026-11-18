@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import crypto from "crypto";
 import Payment from "../models/Payment.js";
 import Booking from "../models/Booking.js";
@@ -92,6 +93,7 @@ export const verifyRazorpayPayment = async (req, res) => {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
+      bookingId,
       bookingData,
     } = req.body;
 
@@ -104,17 +106,24 @@ export const verifyRazorpayPayment = async (req, res) => {
 
     let isSignatureValid = false;
 
-    // Check if simulated order
-    if (razorpay_order_id.startsWith("order_sim_") || !isRazorpayConfigured()) {
+    // Cryptographic signature validation with strict production protection
+    const isDevMode = process.env.NODE_ENV !== "production";
+    if (isDevMode && (razorpay_order_id.startsWith("order_sim_") || !isRazorpayConfigured())) {
       isSignatureValid = true;
     } else {
       const secret = process.env.RAZORPAY_KEY_SECRET || "";
+      if (!secret) {
+        return res.status(500).json({
+          success: false,
+          message: "Payment gateway secret key is not configured on the server",
+        });
+      }
       const generatedSignature = crypto
         .createHmac("sha256", secret)
         .update(`${razorpay_order_id}|${razorpay_payment_id}`)
         .digest("hex");
 
-      isSignatureValid = generatedSignature === razorpay_signature;
+      isSignatureValid = (generatedSignature === razorpay_signature);
     }
 
     if (!isSignatureValid) {
@@ -137,8 +146,45 @@ export const verifyRazorpayPayment = async (req, res) => {
       return createBooking(req, res);
     }
 
+    // If bookingId provided, update the existing booking and payment
+    if (bookingId) {
+      let booking = null;
+      const cleanBookingId = String(bookingId).trim();
+      if (mongoose.Types.ObjectId.isValid(cleanBookingId)) {
+        booking = await Booking.findById(cleanBookingId);
+      }
+      if (!booking) {
+        booking = await Booking.findOne({
+          bookingReference: new RegExp(`^${cleanBookingId}$`, "i"),
+        });
+      }
+
+      if (booking) {
+        booking.paymentStatus = "paid";
+        booking.transactionId = razorpay_payment_id;
+        booking.razorpayOrderId = razorpay_order_id;
+        booking.razorpayPaymentId = razorpay_payment_id;
+        booking.razorpaySignature = razorpay_signature || "";
+        await booking.save();
+
+        await Payment.findOneAndUpdate(
+          { booking: booking._id },
+          {
+            transactionId: razorpay_payment_id,
+            razorpayOrderId: razorpay_order_id,
+            razorpayPaymentId: razorpay_payment_id,
+            razorpaySignature: razorpay_signature || "",
+            status: "successful",
+            paidAt: new Date(),
+          },
+          { upsert: false }
+        );
+      }
+    }
+
     return res.status(200).json({
       success: true,
+      verified: true,
       message: "Razorpay payment verified successfully",
       transactionId: razorpay_payment_id,
       orderId: razorpay_order_id,
@@ -211,7 +257,22 @@ export const getMyPayments = async (req, res) => {
 // @access  Private
 export const getPaymentById = async (req, res) => {
   try {
-    const payment = await Payment.findById(req.params.id);
+    const { id } = req.params;
+    let payment = null;
+    const cleanId = String(id).trim();
+
+    if (mongoose.Types.ObjectId.isValid(cleanId)) {
+      payment = await Payment.findById(cleanId);
+    }
+    if (!payment) {
+      payment = await Payment.findOne({
+        $or: [
+          { transactionId: cleanId },
+          { bookingReference: cleanId },
+          { razorpayPaymentId: cleanId },
+        ],
+      });
+    }
 
     if (!payment) {
       return res.status(404).json({ success: false, message: "Payment not found" });

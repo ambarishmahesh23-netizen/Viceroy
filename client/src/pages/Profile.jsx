@@ -8,9 +8,19 @@ import {
   fetchMyBookings,
   cancelBooking,
   submitReview,
+  fetchMyWalletTransactions,
+  createWalletTopupOrderApi,
+  verifyWalletTopupPaymentApi,
+  loadRazorpayScript,
 } from "../api/adminApi";
-import { logoutUser } from "../api/authApi";
+import { logoutUser, uploadProfilePhotoApi, deleteProfilePhotoApi } from "../api/authApi";
 import "./Profile.css";
+
+const resolveImgUrl = (url) => {
+  if (!url) return "";
+  if (url.startsWith("http") || url.startsWith("blob:") || url.startsWith("data:")) return url;
+  return `http://localhost:4000${url}`;
+};
 
 function Profile() {
   const navigate = useNavigate();
@@ -60,6 +70,13 @@ function Profile() {
   const [reviewComment, setReviewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  // Wallet State
+  const [walletTransactions, setWalletTransactions] = useState([]);
+  const [loadingWallet, setLoadingWallet] = useState(false);
+  const [topupModalOpen, setTopupModalOpen] = useState(false);
+  const [topupAmount, setTopupAmount] = useState("");
+  const [topupLoading, setTopupLoading] = useState(false);
+
   // Notice
   const [toast, setToast] = useState(null);
 
@@ -104,6 +121,106 @@ function Profile() {
     }
   }, []);
 
+  const loadWalletData = useCallback(async () => {
+    setLoadingWallet(true);
+    try {
+      const data = await fetchMyWalletTransactions();
+      if (data?.transactions) {
+        setWalletTransactions(data.transactions);
+      }
+      if (typeof data?.walletBalance === "number") {
+        setUser((prev) => {
+          const updated = { ...prev, walletBalance: data.walletBalance };
+          localStorage.setItem("user", JSON.stringify(updated));
+          return updated;
+        });
+      }
+    } catch (err) {
+      console.warn("Could not load wallet history:", err.message);
+    } finally {
+      setLoadingWallet(false);
+    }
+  }, []);
+
+  const handleTopupSubmit = async (e) => {
+    e.preventDefault();
+    const numAmount = Number(topupAmount);
+    if (!numAmount || numAmount < 100) {
+      showToast("Minimum top-up amount is ₹100", "error");
+      return;
+    }
+    setTopupLoading(true);
+    try {
+      const isScriptLoaded = await loadRazorpayScript();
+      if (!isScriptLoaded) {
+        throw new Error("Razorpay SDK failed to load. Please check your internet connection.");
+      }
+
+      const orderData = await createWalletTopupOrderApi(numAmount);
+
+      if (orderData.isSimulation) {
+        const simPaymentId = `pay_sim_${Date.now()}`;
+        const simSignature = "simulated_dev_signature";
+        await verifyWalletTopupPaymentApi({
+          razorpay_order_id: orderData.orderId,
+          razorpay_payment_id: simPaymentId,
+          razorpay_signature: simSignature,
+          amount: numAmount,
+        });
+
+        showToast(`₹${numAmount.toLocaleString("en-IN")} credited to your wallet!`, "success");
+        setTopupModalOpen(false);
+        setTopupAmount("");
+        loadUserData();
+        loadWalletData();
+        return;
+      }
+
+      const options = {
+        key: orderData.keyId,
+        amount: Math.round(numAmount * 100),
+        currency: "INR",
+        name: "Viceroy Resort",
+        description: "Wallet Balance Top-Up",
+        order_id: orderData.orderId,
+        prefill: {
+          name: user?.fullName || "",
+          email: user?.email || "",
+          contact: user?.phone || "",
+        },
+        theme: { color: "#142217" },
+        handler: async function (response) {
+          try {
+            await verifyWalletTopupPaymentApi({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              amount: numAmount,
+            });
+            showToast(`₹${numAmount.toLocaleString("en-IN")} credited to your wallet!`, "success");
+            setTopupModalOpen(false);
+            setTopupAmount("");
+            loadUserData();
+            loadWalletData();
+          } catch (verifErr) {
+            showToast("Payment verification failed: " + verifErr.message, "error");
+          }
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", function (fail) {
+        showToast(`Payment failed: ${fail.error?.description || "Declined"}`, "error");
+        setTopupLoading(false);
+      });
+      rzp.open();
+    } catch (err) {
+      showToast(err.message || "Failed to initiate top-up", "error");
+    } finally {
+      setTopupLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (user?.role === "admin") {
       navigate("/admin", { replace: true });
@@ -113,14 +230,15 @@ function Profile() {
   useEffect(() => {
     loadUserData();
     loadBookings();
-  }, [loadUserData, loadBookings]);
+    loadWalletData();
+  }, [loadUserData, loadBookings, loadWalletData]);
 
   const handleLogout = async () => {
     await logoutUser();
     navigate("/login");
   };
 
-  const handlePhotoSelect = (e) => {
+  const handlePhotoSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -134,35 +252,27 @@ function Profile() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64Data = reader.result;
-      setPhotoPreview(base64Data);
-      setProfileForm((prev) => ({ ...prev, profilePhoto: base64Data }));
+    const localPreview = URL.createObjectURL(file);
+    setPhotoPreview(localPreview);
 
-      try {
-        setUploadingPhoto(true);
-        const res = await updateAdminProfile({
-          fullName: profileForm.fullName || user?.fullName,
-          email: profileForm.email || user?.email,
-          phone: profileForm.phone || "",
-          address: profileForm.address || "",
-          profilePhoto: base64Data,
-        });
-        setUser(res.user);
-        localStorage.setItem("user", JSON.stringify(res.user));
-        window.dispatchEvent(new Event("user_updated"));
-        showToast("Profile photo updated successfully!");
-      } catch (err) {
-        showToast("Failed to upload photo: " + err.message, "error");
-      } finally {
-        setUploadingPhoto(false);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
+    try {
+      setUploadingPhoto(true);
+      const res = await uploadProfilePhotoApi(file);
+      const photoPath = res.profilePhoto ? (res.profilePhoto.startsWith("http") ? res.profilePhoto : `http://localhost:4000${res.profilePhoto}`) : localPreview;
+      setPhotoPreview(photoPath);
+      setUser(res.user);
+      setProfileForm((prev) => ({ ...prev, profilePhoto: res.profilePhoto }));
+      localStorage.setItem("user", JSON.stringify(res.user));
+      window.dispatchEvent(new Event("user_updated"));
+      showToast("Profile photo uploaded and saved successfully!");
+    } catch (err) {
+      showToast("Failed to upload photo: " + err.message, "error");
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
       }
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleUpdateProfile = async (e) => {
@@ -188,6 +298,11 @@ function Profile() {
     e.preventDefault();
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       showToast("New password and confirmation do not match.", "error");
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 8) {
+      showToast("New password must contain at least 8 characters.", "error");
       return;
     }
 
@@ -307,7 +422,7 @@ function Profile() {
               <div className="profile-avatar">
                 {(photoPreview || user?.profilePhoto) ? (
                   <img
-                    src={photoPreview || user?.profilePhoto}
+                    src={resolveImgUrl(photoPreview || user?.profilePhoto)}
                     alt={user?.fullName || "Guest"}
                     className="profile-avatar-img"
                   />
@@ -648,24 +763,39 @@ function Profile() {
                 </p>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => setTopupModalOpen(true)}
+                  className="btn-save-profile"
+                  style={{
+                    background: "#c49d68",
+                    color: "#142217",
+                    fontWeight: "bold",
+                    padding: "12px 22px",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                  }}
+                >
+                  ➕ Add Money to Wallet
+                </button>
                 <Link
                   to="/booking"
                   className="btn-save-profile"
                   style={{
                     textDecoration: "none",
-                    background: "#c49d68",
-                    color: "#142217",
+                    background: "rgba(255,255,255,0.15)",
+                    border: "1px solid #c49d68",
+                    color: "#ffffff",
                     fontWeight: "bold",
                     textAlign: "center",
                     padding: "12px 22px",
+                    fontSize: "14px",
                   }}
                 >
-                  Use Wallet in Next Booking →
+                  Use in Next Booking →
                 </Link>
-                <small style={{ color: "#a8b5ab", fontSize: "11px", textAlign: "center" }}>
-                  ✓ Instant 1-click checkout with stored credits
-                </small>
               </div>
             </div>
 
@@ -709,13 +839,80 @@ function Profile() {
                 Recent Wallet Activity & Refund Records
               </h3>
 
-              {(!user?.walletTransactions || user.walletTransactions.length === 0) ? (
+              {walletTransactions.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {walletTransactions.map((tx) => (
+                    <div
+                      key={tx._id}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "14px 18px",
+                        borderRadius: "6px",
+                        background: tx.type === "credit" ? "#f4fdf7" : "#fffbfb",
+                        border: `1px solid ${tx.type === "credit" ? "#c8eed5" : "#fbd3d3"}`,
+                        flexWrap: "wrap",
+                        gap: "8px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <span
+                          style={{
+                            width: "32px",
+                            height: "32px",
+                            borderRadius: "50%",
+                            background: tx.type === "credit" ? "#1f7a3f" : "#a82e2e",
+                            color: "#ffffff",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: "bold",
+                            fontSize: "14px",
+                          }}
+                        >
+                          {tx.type === "credit" ? "↓" : "↑"}
+                        </span>
+                        <div>
+                          <strong style={{ fontSize: "14px", color: "#142217", display: "block" }}>
+                            {tx.description || (tx.type === "credit" ? "Wallet Deposit" : "Payment Debited")}
+                          </strong>
+                          <small style={{ color: "#777" }}>
+                            {new Date(tx.createdAt).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })} · Balance after: ₹{(tx.balanceAfter || 0).toLocaleString("en-IN")}
+                          </small>
+                        </div>
+                      </div>
+
+                      <div style={{ textAlign: "right" }}>
+                        <span
+                          style={{
+                            fontSize: "16px",
+                            fontWeight: "bold",
+                            color: tx.type === "credit" ? "#1f7a3f" : "#a82e2e",
+                          }}
+                        >
+                          {tx.type === "credit" ? "+" : "-"}₹{tx.amount.toLocaleString("en-IN")}
+                        </span>
+                        <div style={{ fontSize: "11px", color: "#8a7c6a", textTransform: "capitalize" }}>
+                          {tx.category?.replace("_", " ")}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (!user?.walletTransactions || user.walletTransactions.length === 0) ? (
                 <div style={{ textAlign: "center", padding: "32px 16px", color: "#666" }}>
                   <p style={{ margin: "0 0 4px", fontSize: "15px", fontWeight: "600", color: "#142217" }}>
                     No wallet activity recorded yet
                   </p>
                   <p style={{ margin: 0, fontSize: "13px" }}>
-                    Any refund credits from cancelled reservations or payments made using wallet balance will appear here.
+                    Any refund credits from cancelled reservations or wallet top-ups will appear here.
                   </p>
                 </div>
               ) : (
@@ -804,7 +1001,7 @@ function Profile() {
               <div className="profile-photo-preview-circle">
                 {(photoPreview || user?.profilePhoto) ? (
                   <img
-                    src={photoPreview || user?.profilePhoto}
+                    src={resolveImgUrl(photoPreview || user?.profilePhoto)}
                     alt={user?.fullName || "Guest"}
                     className="profile-avatar-img"
                   />
@@ -1123,6 +1320,101 @@ function Profile() {
                 Confirm Cancellation
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Wallet Top-Up Modal */}
+      {topupModalOpen && (
+        <div className="modal-overlay" onClick={() => setTopupModalOpen(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "480px" }}>
+            <div className="modal-header">
+              <div>
+                <span className="modal-eyebrow">INSTANT ACCOUNT FUNDING</span>
+                <h3 style={{ margin: "4px 0 0", color: "#142217", fontFamily: "Georgia, serif" }}>
+                  👛 Add Money to Viceroy Wallet
+                </h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setTopupModalOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleTopupSubmit} style={{ padding: "20px" }}>
+              <div style={{ background: "#fbf6ec", padding: "12px 16px", borderRadius: "6px", marginBottom: "16px", border: "1px solid #c49d68" }}>
+                <span style={{ fontSize: "11px", color: "#8a7c6a", textTransform: "uppercase", letterSpacing: "1px" }}>Current Balance</span>
+                <div style={{ fontSize: "20px", fontWeight: "bold", color: "#142217" }}>
+                  ₹{(user?.walletBalance || 0).toLocaleString("en-IN")}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: "14px" }}>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: "700", marginBottom: "8px" }}>
+                  SELECT AMOUNT
+                </label>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "10px" }}>
+                  {[1000, 5000, 10000, 25000, 50000].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setTopupAmount(String(amt))}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: "20px",
+                        border: Number(topupAmount) === amt ? "2px solid #142217" : "1px solid #dcd3c5",
+                        background: Number(topupAmount) === amt ? "#142217" : "#ffffff",
+                        color: Number(topupAmount) === amt ? "#c49d68" : "#142217",
+                        fontWeight: "600",
+                        fontSize: "12px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ₹{amt.toLocaleString("en-IN")}
+                    </button>
+                  ))}
+                </div>
+
+                <label style={{ display: "block", fontSize: "12px", fontWeight: "700", marginBottom: "6px" }}>
+                  OR ENTER CUSTOM AMOUNT (₹) *
+                </label>
+                <input
+                  type="number"
+                  min="100"
+                  max="1000000"
+                  required
+                  placeholder="Min ₹100"
+                  value={topupAmount}
+                  onChange={(e) => setTopupAmount(e.target.value)}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: "6px", border: "1px solid #dcd3c5", fontSize: "15px" }}
+                />
+              </div>
+
+              <div style={{ fontSize: "12px", color: "#6a7b70", marginBottom: "20px", lineHeight: "1.4" }}>
+                🔒 Secure 256-bit encrypted checkout via Razorpay (UPI, Credit/Debit Cards, Net Banking). Funds reflect instantly in your wallet balance upon completion.
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button
+                  type="button"
+                  className="btn-modal-cancel"
+                  onClick={() => setTopupModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={topupLoading || !topupAmount}
+                  className="btn-save-profile"
+                  style={{ background: "#c49d68", color: "#142217", border: "none", padding: "10px 24px", fontWeight: "bold" }}
+                >
+                  {topupLoading ? "Opening Gateway..." : `Proceed to Pay ₹${Number(topupAmount || 0).toLocaleString("en-IN")}`}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

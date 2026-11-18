@@ -106,11 +106,30 @@ export const logoutUser = async (req, res) => {
 };
 
 export const registerUser = async (req, res) => {
-  return res.status(403).json({
-    success: false,
-    message:
-      "Direct registration without email OTP is disabled. Please create an account using email OTP verification at /signup.",
-  });
+  try {
+    const { fullName, email, password } = req.body ?? {};
+    const result = await registerService({ fullName, email, password });
+
+    res.cookie("token", result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Registration successful",
+      token: result.token,
+      user: result.user,
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      isRegistered: error.isRegistered || false,
+      message: error.message || "Registration failed",
+    });
+  }
 };
 
 export const sendSignupOtp = async (req, res) => {
@@ -335,10 +354,10 @@ export const updatePassword = async (req, res) => {
       });
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 8) {
       return res.status(400).json({
         success: false,
-        message: "New password must be at least 6 characters long",
+        message: "New password must be at least 8 characters long",
       });
     }
 
@@ -390,12 +409,33 @@ export const seedAdminUser = async (req, res) => {
       await admin.save();
     }
 
+    // Also ensure demo customer user exists
+    const customerEmail = "alexander.vance@example.com";
+    let customer = await User.findOne({ email: customerEmail });
+    if (!customer) {
+      const customerPassword = await bcrypt.hash("Password@123", 10);
+      customer = await User.create({
+        fullName: "Alexander Vance",
+        email: customerEmail,
+        password: customerPassword,
+        role: "customer",
+        phone: "+1 415 555 0192",
+        walletBalance: 15000,
+      });
+    }
+
     return res.status(200).json({
       success: true,
-      message: "Admin account verified/ready",
+      message: "Admin and demo customer accounts verified/ready",
       credentials: {
-        email: adminEmail,
-        password: "admin123",
+        admin: {
+          email: adminEmail,
+          password: "admin123",
+        },
+        customer: {
+          email: customerEmail,
+          password: "Password@123",
+        },
       },
     });
   } catch (error) {
@@ -409,24 +449,35 @@ export const seedAdminUser = async (req, res) => {
 
 export const makeMeAdmin = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+    const { email } = req.body || {};
+    let targetUser = null;
+
+    if (email && email.trim()) {
+      targetUser = await User.findOne({ email: email.trim().toLowerCase() });
     }
-    user.role = "admin";
-    await user.save();
+
+    if (!targetUser && req.user?._id) {
+      targetUser = await User.findById(req.user._id);
+    }
+
+    if (!targetUser) {
+      return res.status(404).json({ success: false, message: "Target user not found" });
+    }
+
+    targetUser.role = "admin";
+    await targetUser.save();
 
     return res.status(200).json({
       success: true,
-      message: "Role updated to admin in MongoDB successfully",
+      message: `Role for ${targetUser.email} updated to admin successfully`,
       user: {
-        _id: user._id, 
-        fullName: user.fullName,
-        email: user.email,
-        phone: user.phone || "",
-        address: user.address || "",
-        role: user.role,
-        createdAt: user.createdAt,
+        _id: targetUser._id,
+        fullName: targetUser.fullName,
+        email: targetUser.email,
+        phone: targetUser.phone || "",
+        address: targetUser.address || "",
+        role: targetUser.role,
+        createdAt: targetUser.createdAt,
       },
     });
   } catch (error) {
@@ -434,5 +485,70 @@ export const makeMeAdmin = async (req, res) => {
       success: false,
       message: error.message || "Failed to elevate role",
     });
+  }
+};
+
+export const uploadProfilePhoto = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Please select an image file to upload" });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const photoUrl = `/uploads/avatars/${req.file.filename}`;
+    user.profilePhoto = photoUrl;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile photo uploaded successfully",
+      profilePhoto: photoUrl,
+      user: {
+        _id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone || "",
+        address: user.address || "",
+        role: user.role,
+        profilePhoto: user.profilePhoto,
+        walletBalance: user.walletBalance || 0,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || "Failed to upload profile photo" });
+  }
+};
+
+export const deleteProfilePhoto = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    user.profilePhoto = "";
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile photo removed",
+      profilePhoto: "",
+      user: {
+        _id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone || "",
+        address: user.address || "",
+        role: user.role,
+        profilePhoto: "",
+        walletBalance: user.walletBalance || 0,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || "Failed to remove profile photo" });
   }
 };
